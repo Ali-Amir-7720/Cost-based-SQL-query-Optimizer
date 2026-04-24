@@ -5,10 +5,6 @@
 #include <stdexcept>
 #include "plan.h"
 #include "catalog.h"
-
-// ============================================================
-//  Token types
-// ============================================================
 enum class TokKind {
     KW_SELECT, KW_FROM, KW_WHERE, KW_AND, KW_GROUP, KW_BY,
     KW_LIMIT, KW_AS, KW_OR,
