@@ -1,9 +1,7 @@
 # Cost-Based SQL Query Optimizer
 
-**Group 29**  
-M. Fahad Pasha (BSCS24147)  
-M Ali Amir (BSCS24137)  
-M Ali (BSCS24073)
+**Seraiki Stallions (Group 29)**  
+M. Fahad Pasha (BSCS24147) - M Ali Amir (BSCS24137) - M Ali (BSCS24073)
 
 ## Phase 1 Scope
 This repo contains the phase 1 version of our SQL optimizer. We support parsing, catalog loading, naive logical planning, materialized execution, and the basic rewrite/cost/join-order pipeline used by the later phases.
