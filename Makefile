@@ -48,10 +48,11 @@ TEST_BINS := $(TEST_DIR)/test_parser$(EXE) \
 
 tests: $(TEST_BINS)
 	@echo "Running all tests..."
-	@for bin in $(TEST_BINS); do \
-		echo "  $$bin"; \
-		./$$bin && echo "  PASS" || echo "  FAIL"; \
-	done
+	@.\tests\test_parser$(EXE) && echo "  PASS" || echo "  FAIL"
+	@.\tests\test_rewriter$(EXE) && echo "  PASS" || echo "  FAIL"
+	@.\tests\test_cost$(EXE) && echo "  PASS" || echo "  FAIL"
+	@.\tests\test_join_order$(EXE) && echo "  PASS" || echo "  FAIL"
+	@.\tests\test_e2e$(EXE) && echo "  PASS" || echo "  FAIL"
 
 $(TEST_DIR)/test_parser$(EXE): $(OBJS) $(TEST_DIR)/test_parser.cpp
 	$(CXX) $(CXXFLAGS) -I$(SRC_DIR) -o $@ $(OBJS) $(TEST_DIR)/test_parser.cpp
@@ -82,4 +83,7 @@ bench: all $(GEN)
 
 # ── Clean ──────────────────────────────────────────────────
 clean:
-	$(RM) $(TARGET) $(OBJS) $(MAIN_OBJ) $(TEST_BINS) $(GEN) 2>/dev/null; true
+	-@if exist $(TARGET) del /Q $(TARGET) >NUL 2>&1
+	-@if exist src\*.o del /Q src\*.o >NUL 2>&1
+	-@if exist tests\*.exe del /Q tests\*.exe >NUL 2>&1
+	-@if exist benchmark\*.exe del /Q benchmark\*.exe >NUL 2>&1
