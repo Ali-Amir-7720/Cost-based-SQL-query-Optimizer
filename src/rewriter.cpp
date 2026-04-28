@@ -4,9 +4,7 @@
 #include <stdexcept>
 #include <iostream>
 
-// ============================================================
-//  Schema re-attachment (needed after structural changes)
-// ============================================================
+// schema re-attachment after structural changes
 Schema Rewriter::make_join_schema(const PlanNode* left, const PlanNode* right) const {
     Schema s = left ? left->schema : Schema{};
     if (right) for (auto& c : right->schema) s.push_back(c);
@@ -33,7 +31,7 @@ void Rewriter::reattach_schemas(PlanNode* node) const {
                          node->proj_exprs[0]->kind == ExprKind::COL_REF &&
                          node->proj_exprs[0]->col  == "*");
             if (star && node->left) { node->schema = node->left->schema; break; }
-            // Rebuild schema from expressions
+            // rebuild schema from expressions
             Schema s;
             for (auto& ex : node->proj_exprs) {
                 SchemaCol sc;
@@ -70,9 +68,7 @@ void Rewriter::reattach_schemas(PlanNode* node) const {
     }
 }
 
-// ============================================================
-//  Rule 1 — Constant Folding
-// ============================================================
+// rule 1: constant folding
 Value Rewriter::eval_const_expr(const Expr* e) const {
     if (!e) return Value::null_val();
     if (e->kind == ExprKind::LITERAL) return e->lit;
@@ -103,7 +99,7 @@ bool Rewriter::try_fold_pred(Pred* p) const {
     if (p->kind != PredKind::EXPR_OP_EXPR) return false;
     if (!p->lhs || !p->rhs) return false;
     if (!p->lhs->is_literal() || !p->rhs->is_literal()) return false;
-    // Both sides are pure literals → fold
+    // both sides are pure literals, so we fold
     Value lv = eval_const_expr(p->lhs.get());
     Value rv = eval_const_expr(p->rhs.get());
     if (lv.is_null() || rv.is_null()) return false;
@@ -135,24 +131,22 @@ std::unique_ptr<PlanNode> Rewriter::constant_fold(std::unique_ptr<PlanNode> node
         if (p->kind == PredKind::ALWAYS_FALSE) { any_false = true; break; }
     }
     if (any_false) {
-        // Replace entire subtree with EMPTY
+        // replace the subtree with empty
         auto empty = std::make_unique<PlanNode>();
         empty->kind = PlanKind::EMPTY;
         return empty;
     }
-    // Remove ALWAYS_TRUE predicates
+    // remove always_true predicates
     node->preds.erase(
         std::remove_if(node->preds.begin(), node->preds.end(),
             [](const std::unique_ptr<Pred>& p){ return p->kind == PredKind::ALWAYS_TRUE; }),
         node->preds.end());
-    // If no predicates remain, return child directly
+    // if no predicates remain, return child directly
     if (node->preds.empty()) return std::move(node->left);
     return node;
 }
 
-// ============================================================
-//  Rule 2 — Predicate Pushdown
-// ============================================================
+// rule 2: predicate pushdown
 std::unique_ptr<PlanNode> Rewriter::push_preds_through_join(
     std::unique_ptr<PlanNode> filter,
     std::unique_ptr<PlanNode> join)
@@ -172,7 +166,7 @@ std::unique_ptr<PlanNode> Rewriter::push_preds_through_join(
             if (std::find(right_tables.begin(), right_tables.end(), t) != right_tables.end()) r_ref = true;
         }
         if (l_ref && r_ref) {
-            // Cross-table predicate → becomes join condition (equijoin)
+            // cross-table predicate becomes a join condition
             if (!join->join_pred && pred->op == Op::EQ &&
                 pred->lhs && pred->lhs->kind == ExprKind::COL_REF &&
                 pred->rhs && pred->rhs->kind == ExprKind::COL_REF)
@@ -186,12 +180,12 @@ std::unique_ptr<PlanNode> Rewriter::push_preds_through_join(
         } else if (r_ref) {
             for_right.push_back(std::move(pred));
         } else {
-            // Constant predicate — keep above
+            // constant predicate stays above
             remaining.push_back(std::move(pred));
         }
     }
 
-    // Push filters down
+    // push filters down
     if (!for_left.empty()) {
         auto lf   = std::make_unique<PlanNode>();
         lf->kind  = PlanKind::FILTER;
@@ -222,7 +216,7 @@ std::unique_ptr<PlanNode> Rewriter::predicate_pushdown(std::unique_ptr<PlanNode>
     if (node->kind != PlanKind::FILTER) return node;
     if (!node->left) return node;
 
-    // Try to push through a JOIN
+    // try to push through a join
     if (node->left->kind == PlanKind::JOIN ||
         node->left->kind == PlanKind::CROSS_PRODUCT)
     {
@@ -233,9 +227,7 @@ std::unique_ptr<PlanNode> Rewriter::predicate_pushdown(std::unique_ptr<PlanNode>
     return node;
 }
 
-// ============================================================
-//  Rule 3 — Projection Pushdown
-// ============================================================
+// rule 3: projection pushdown
 void Rewriter::collect_expr_cols(const Expr* e,
     std::vector<std::pair<std::string,std::string>>& needed) const
 {
@@ -271,21 +263,15 @@ void Rewriter::collect_needed(const PlanNode* node,
 
 std::unique_ptr<PlanNode> Rewriter::projection_pushdown(std::unique_ptr<PlanNode> node) {
     if (!node) return nullptr;
-    // Only apply at Scan nodes — wrap with a Project that keeps only needed cols
+    // only apply at scan nodes
     if (node->kind == PlanKind::SCAN) {
-        // Schema is already set; nothing to push further
+        // schema is already set; nothing to push further
         return node;
     }
-    // For simplicity: collect all needed columns from the entire subtree,
-    // then add narrow Project nodes just above each Scan
-    // (full projection pushdown would require ancestor info; this is the
-    //  standard "scan-level projection" optimisation)
-    return node;  // no-op in this simplified form; predicate pushdown is the key win
+    // keep this a no-op here; predicate pushdown is the main win
 }
 
-// ============================================================
-//  Fixed-point loop
-// ============================================================
+// fixed-point loop
 std::unique_ptr<PlanNode> Rewriter::rewrite(std::unique_ptr<PlanNode> plan) {
     const int MAX_ITERS = 10;
     for (int iter = 0; iter < MAX_ITERS; iter++) {
@@ -300,20 +286,18 @@ std::unique_ptr<PlanNode> Rewriter::rewrite(std::unique_ptr<PlanNode> plan) {
     return plan;
 }
 
-// ============================================================
-//  Rule 4 — Join Input Swap (applied after cost annotation)
-// ============================================================
+// rule 4: join input swap after cost annotation
 std::unique_ptr<PlanNode> Rewriter::apply_join_swap(std::unique_ptr<PlanNode> node) {
     if (!node) return nullptr;
     node->left  = apply_join_swap(std::move(node->left));
     node->right = apply_join_swap(std::move(node->right));
 
     if (node->kind == PlanKind::JOIN && node->left && node->right) {
-        // Build side should be smaller → put smaller on left
+        // build side should be smaller, so put smaller on the left
         if (node->right->cardinality < node->left->cardinality) {
-            // Swap children
+            // swap children
             std::swap(node->left, node->right);
-            // Also swap join condition sides if needed
+            // swap join condition sides if needed
             if (node->join_pred &&
                 node->join_pred->kind == PredKind::EXPR_OP_EXPR) {
                 std::swap(node->join_pred->lhs, node->join_pred->rhs);

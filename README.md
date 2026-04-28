@@ -1,7 +1,36 @@
-# Project 02: Cost-Based Query Optimizer
+# Cost-Based SQL Query Optimizer
 
-**Group Number:** 29  
-**Members:** * M. Fahad Pasha (BSCS24147) - * M Ali Amir (BSCS24137) - * M Ali (BSCS24073)  
+**Group 29**  
+M. Fahad Pasha (BSCS24147)  
+M Ali Amir (BSCS24137)  
+M Ali (BSCS24073)
 
-## Overview
-This repository contains the Phase 1 implementation of a custom SQL query optimizer for the Advanced Database Management course. The current phase establishes the end-to-end query pipeline without the optimization engine. Queries are parsed into a naive logical plan, executed by a materialized executor, and return accurate results.
+## Phase 1 Scope
+This repo contains the phase 1 version of our SQL optimizer. We support parsing, catalog loading, naive logical planning, materialized execution, and the basic rewrite/cost/join-order pipeline used by the later phases.
+
+## What It Runs
+- `SELECT` queries over CSV-backed tables
+- `WHERE` filters
+- joins across multiple tables
+- `GROUP BY` with a single aggregate
+- `LIMIT`
+- `EXPLAIN` and benchmark-style comparisons
+
+## Build And Test
+From a Windows shell with `mingw32-make` available:
+
+```bash
+mingw32-make tests
+```
+
+That builds the project and runs the full test suite. To clean generated binaries and objects:
+
+```bash
+mingw32-make clean
+```
+
+## Data
+Sample CSV files and cached catalog data live under `benchmark/benchdata/`.
+
+## Notes
+The current codebase is set up to run on Windows with `mingw32-make`.

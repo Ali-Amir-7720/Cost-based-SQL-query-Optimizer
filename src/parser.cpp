@@ -4,7 +4,6 @@
 #include <stdexcept>
 #include <algorithm>
 #include <cassert>
-
 // ============================================================
 //  Tokeniser
 // ============================================================
@@ -127,30 +126,22 @@ void Parser::tokenise(const std::string& sql) {
     tokens_.push_back(end);
 }
 
-// ============================================================
-//  Token stream helpers
-// ============================================================
+// token stream helpers
 Token& Parser::peek()  { return tokens_[pos_]; }
 Token& Parser::peek2() { return tokens_[std::min(pos_+1, (int)tokens_.size()-1)]; }
-Token  Parser::consume() {
-    Token t = tokens_[pos_];
-    if (pos_ < (int)tokens_.size()-1) pos_++;
-    return t;
-}
+bool Parser::at(TokKind k) const { return tokens_[pos_].kind == k; }
+Token Parser::consume() { return tokens_[pos_++]; }
 Token Parser::expect(TokKind k) {
-    if (tokens_[pos_].kind != k)
+    if (!at(k)) {
         throw std::runtime_error("Parser: unexpected token '" + tokens_[pos_].lexeme + "'");
+    }
     return consume();
 }
-bool Parser::at(TokKind k)  const { return tokens_[pos_].kind == k; }
 bool Parser::at2(TokKind k) const {
-    int nx = std::min(pos_+1, (int)tokens_.size()-1);
-    return tokens_[nx].kind == k;
+    return tokens_[std::min(pos_+1, (int)tokens_.size()-1)].kind == k;
 }
 
-// ============================================================
-//  Expression parsing
-// ============================================================
+// expression parsing
 static Op tok_to_op(TokKind k) {
     switch (k) {
         case TokKind::OP_EQ:    return Op::EQ;
@@ -162,24 +153,27 @@ static Op tok_to_op(TokKind k) {
         case TokKind::OP_STAR:  return Op::MUL;
         case TokKind::OP_PLUS:  return Op::ADD;
         case TokKind::OP_MINUS: return Op::SUB;
-        case TokKind::OP_SLASH: return Op::DIV;
         default:                return Op::EQ;
     }
 }
+
 static bool is_arith(TokKind k) {
     return k == TokKind::OP_STAR || k == TokKind::OP_PLUS
         || k == TokKind::OP_MINUS || k == TokKind::OP_SLASH;
 }
+
 static bool is_cmp(TokKind k) {
     return k == TokKind::OP_EQ  || k == TokKind::OP_NEQ
         || k == TokKind::OP_LT  || k == TokKind::OP_LE
         || k == TokKind::OP_GT  || k == TokKind::OP_GE;
 }
+
 static bool is_agg_kw(TokKind k) {
-    return k == TokKind::KW_SUM  || k == TokKind::KW_COUNT
-        || k == TokKind::KW_AVG  || k == TokKind::KW_MIN
+    return k == TokKind::KW_SUM   || k == TokKind::KW_COUNT
+        || k == TokKind::KW_AVG   || k == TokKind::KW_MIN
         || k == TokKind::KW_MAX;
 }
+
 static AggType kw_to_agg(TokKind k) {
     switch (k) {
         case TokKind::KW_SUM:   return AggType::SUM;
@@ -194,25 +188,20 @@ static AggType kw_to_agg(TokKind k) {
 std::unique_ptr<Expr> Parser::parse_primary_expr() {
     auto& tk = peek();
 
-    // Aggregate: SUM(expr), COUNT(*), AVG(col), MIN(col), MAX(col)
     if (is_agg_kw(tk.kind)) {
         TokKind kind = tk.kind;
         consume();
-        expect(TokKind::LPAREN);
         auto agg = std::make_unique<Expr>();
         agg->kind = ExprKind::AGGREGATE;
         agg->agg  = kw_to_agg(kind);
         if (at(TokKind::OP_STAR)) {
             consume();
-            // COUNT(*) — arg is null
         } else {
             agg->agg_arg = parse_primary_expr();
         }
-        expect(TokKind::RPAREN);
         return agg;
     }
 
-    // Literal integer
     if (tk.kind == TokKind::INT_LIT) {
         auto e = std::make_unique<Expr>();
         e->kind = ExprKind::LITERAL;
@@ -221,7 +210,6 @@ std::unique_ptr<Expr> Parser::parse_primary_expr() {
         return e;
     }
 
-    // Literal float
     if (tk.kind == TokKind::FLOAT_LIT) {
         auto e = std::make_unique<Expr>();
         e->kind = ExprKind::LITERAL;
@@ -230,7 +218,6 @@ std::unique_ptr<Expr> Parser::parse_primary_expr() {
         return e;
     }
 
-    // String literal
     if (tk.kind == TokKind::STR_LIT) {
         auto e = std::make_unique<Expr>();
         e->kind = ExprKind::LITERAL;
@@ -239,13 +226,13 @@ std::unique_ptr<Expr> Parser::parse_primary_expr() {
         return e;
     }
 
-    // Identifier (possibly qualified: table.col)
     if (tk.kind == TokKind::IDENT) {
-        std::string id = tk.lexeme; consume();
         auto e = std::make_unique<Expr>();
         e->kind = ExprKind::COL_REF;
+        std::string id = tk.lexeme;
+        consume();
         if (at(TokKind::DOT)) {
-            consume(); // consume '.'
+            consume();
             e->tbl = id;
             e->col = expect(TokKind::IDENT).lexeme;
         } else {
@@ -254,7 +241,6 @@ std::unique_ptr<Expr> Parser::parse_primary_expr() {
         return e;
     }
 
-    // Parenthesised expression
     if (tk.kind == TokKind::LPAREN) {
         consume();
         auto e = parse_expr();
@@ -516,8 +502,8 @@ std::unique_ptr<PlanNode> Parser::build_naive_plan(
         top = std::move(filter);
     }
 
-    // 3. Project
-    {
+    // 3. Project (non-grouped queries only)
+    if (!has_groupby) {
         auto proj = std::make_unique<PlanNode>();
         proj->kind = PlanKind::PROJECT;
         proj->proj_exprs = std::move(select_exprs);
@@ -525,7 +511,7 @@ std::unique_ptr<PlanNode> Parser::build_naive_plan(
         top = std::move(proj);
     }
 
-    // 4. GroupBy (wraps Project if present)
+    // 4. GroupBy
     if (has_groupby) {
         auto gb   = std::make_unique<PlanNode>();
         gb->kind  = PlanKind::GROUPBY;

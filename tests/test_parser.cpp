@@ -1,6 +1,6 @@
 // tests/test_parser.cpp
-// Unit tests for the SQL parser.
-// Verifies AST structure for 10 representative queries.
+// parser tests.
+// checks ast structure for representative queries.
 
 #include <cassert>
 #include <iostream>
@@ -14,14 +14,13 @@
 
 static int passed = 0, failed = 0;
 
-// Build a minimal catalog for testing
+// build a minimal catalog for testing
 static Catalog make_test_catalog() {
-    // We build a fake catalog manually by loading from a temp file
-    // For tests, we use an empty catalog and rely on the parser's built-in handling
+    // use an empty catalog for parser tests
     return Catalog{};
 }
 
-// Helper: find first node of a given kind in the tree
+// helper: find first node of a given kind in the tree
 static const PlanNode* find_node(const PlanNode* p, PlanKind k) {
     if (!p) return nullptr;
     if (p->kind == k) return p;
@@ -35,9 +34,9 @@ static void test_simple_select() {
     Parser  parser;
     auto plan = parser.parse("SELECT id FROM customers", cat);
     assert(plan != nullptr);
-    // Should have a Project node at root
+    // should have a project node at root
     assert(plan->kind == PlanKind::PROJECT);
-    // With a Scan below
+    // with a scan below
     auto* scan = find_node(plan.get(), PlanKind::SCAN);
     assert(scan != nullptr);
     assert(scan->table_name == "customers");
@@ -61,7 +60,7 @@ static void test_two_table_join() {
     auto plan = parser.parse(
         "SELECT * FROM customers, orders WHERE customers.id = orders.customer_id", cat);
     assert(plan != nullptr);
-    // There should be a JOIN node
+    // there should be a join node
     auto* join = find_node(plan.get(), PlanKind::JOIN);
     assert(join != nullptr);
     PASS("2-table join produces JOIN node");
@@ -150,7 +149,7 @@ static void test_three_table() {
         "WHERE customers.id = orders.customer_id "
         "AND orders.id = line_items.order_id", cat);
     assert(plan != nullptr);
-    // Should have 3 Scan nodes
+    // should have 3 scan nodes
     auto tables = collect_tables(plan.get());
     assert(tables.size() == 3);
     PASS("3-table query has exactly 3 Scan nodes");

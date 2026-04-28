@@ -1,6 +1,6 @@
 // tests/test_join_order.cpp
-// Unit tests for the Selinger DP join-order search.
-// Verifies on a 3-table example with known optimal plan.
+// join-order tests.
+// checks selinger dp on a known 3-table case.
 
 #include <cassert>
 #include <iostream>
@@ -15,20 +15,20 @@
 
 static int passed = 0, failed = 0;
 
-// Build a Scan node with manually set cardinality/cost (for DP testing without a real catalog)
+// build a scan node with manual cardinality/cost
 static std::unique_ptr<PlanNode> make_scan_with_card(const std::string& name, double card) {
     auto n = std::make_unique<PlanNode>();
     n->kind = PlanKind::SCAN;
     n->table_name = name;
     n->cardinality = card;
     n->cost = card;  // cost of reading
-    // Schema: one dummy column so joins work
+    // one dummy column so joins work
     SchemaCol col; col.table = name; col.name = "id"; col.type = ValType::INT;
     n->schema.push_back(col);
     return n;
 }
 
-// Build a JoinCond between two tables
+// build a join cond between two tables
 static JoinCond make_join_cond(const std::string& lt, const std::string& lc,
                                 const std::string& rt, const std::string& rc) {
     JoinCond jc;
@@ -45,9 +45,9 @@ static JoinCond make_join_cond(const std::string& lt, const std::string& lc,
     return jc;
 }
 
-// ── Test: 2-table DP picks the cheaper order ─────────────
+// test: 2-table dp picks the cheaper order
 static void test_dp_2table_order() {
-    // A(10K) ⋈ B(500K): DP must pick A as build side
+    // a(10k) ⋈ b(500k): dp must pick a as build side
     Catalog cat;
     CostModel cm(cat);
     JoinOrderDP dp(cm, cat);
@@ -65,15 +65,9 @@ static void test_dp_2table_order() {
     PASS("2-table DP produces a JOIN node");
 }
 
-// ── Test: 3-table DP produces correct plan structure ─────
+// test: 3-table dp produces correct plan structure
 static void test_dp_3table_known_optimal() {
-    // Known scenario:
-    //   small   (10   rows)
-    //   medium  (1000 rows)
-    //   large   (100K rows)
-    // Conditions: small.id = medium.sid, medium.id = large.mid
-    // Optimal left-deep order: small ⋈ medium ⋈ large
-    // (starting with the smallest table minimises intermediate results)
+    // known scenario with small, medium, and large tables
 
     Catalog cat;
     CostModel cm(cat);
@@ -92,12 +86,12 @@ static void test_dp_3table_known_optimal() {
     assert(result != nullptr);
     assert(result->kind == PlanKind::JOIN);
 
-    // The root join should handle the 3rd table (large)
-    // The left subtree should itself be a join
+    // the root join should handle the 3rd table
+    // the left subtree should also be a join
     assert(result->left != nullptr);
     assert(result->left->kind == PlanKind::JOIN);
 
-    // Verify: cost of chosen plan < cost of naive order (large ⋈ medium ⋈ small)
+    // verify the chosen plan is not worse than the naive order
     std::vector<BaseTable> naive_tables;
     naive_tables.push_back(BaseTable{"large",  make_scan_with_card("large",  100000)});
     naive_tables.push_back(BaseTable{"medium", make_scan_with_card("medium", 1000  )});
@@ -106,16 +100,16 @@ static void test_dp_3table_known_optimal() {
     naive_conds.push_back(make_join_cond("small","id","medium","sid"));
     naive_conds.push_back(make_join_cond("medium","id","large","mid"));
 
-    // Build naive left-deep: large ⋈ medium ⋈ small
+    // build naive left-deep: large ⋈ medium ⋈ small
     auto naive = make_scan_with_card("large", 100000);
-    // Join with medium
+    // join with medium
     auto j1 = std::make_unique<PlanNode>(); j1->kind = PlanKind::JOIN;
     j1->left  = std::move(naive);
     j1->right = make_scan_with_card("medium", 1000);
     auto p1 = clone_pred(conds[0].pred.get()); j1->join_pred = std::move(p1);
     j1->schema = j1->left->schema; for (auto& c : j1->right->schema) j1->schema.push_back(c);
     cm.annotate(j1.get());
-    // Join with small
+    // join with small
     auto j2 = std::make_unique<PlanNode>(); j2->kind = PlanKind::JOIN;
     j2->left  = std::move(j1);
     j2->right = make_scan_with_card("small", 10);
@@ -124,14 +118,14 @@ static void test_dp_3table_known_optimal() {
     cm.annotate(j2.get());
 
     cm.annotate(result.get());
-    // DP result should be cheaper or equal
+    // dp result should be cheaper or equal
     assert(result->cost <= j2->cost + 1.0); // +1 for floating point
     PASS("3-table DP: chosen plan cost ≤ large⋈medium⋈small naive cost");
 }
 
-// ── Test: extract_join_info ───────────────────────────────
+// test: extract_join_info
 static void test_extract_join_info() {
-    // Build: JOIN(cond12, JOIN(cond01, Scan(A), Scan(B)), Scan(C))
+    // build a join tree with three scans
     auto scanA = make_scan_with_card("A", 100);
     auto scanB = make_scan_with_card("B", 1000);
     auto scanC = make_scan_with_card("C", 50000);
@@ -159,7 +153,7 @@ static void test_extract_join_info() {
     PASS("extract_join_info: finds 3 base tables and 2 join conditions from 3-table plan");
 }
 
-// ── Test: single table ───────────────────────────────────
+// test: single table
 static void test_dp_single_table() {
     Catalog cat;
     CostModel cm(cat);
