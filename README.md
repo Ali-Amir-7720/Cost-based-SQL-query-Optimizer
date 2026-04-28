@@ -31,6 +31,3 @@ mingw32-make clean
 
 ## Data
 Sample CSV files and cached catalog data live under `benchmark/benchdata/`.
-
-## Notes
-The current codebase is set up to run on Windows with `mingw32-make`.
