@@ -1,6 +1,11 @@
 // tests/test_parser.cpp
+<<<<<<< HEAD
 // Unit tests for the SQL parser.
 // Verifies AST structure for 10 representative queries.
+=======
+// parser tests.
+// checks ast structure for representative queries.
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 
 #include <cassert>
 #include <iostream>
@@ -14,6 +19,7 @@
 
 static int passed = 0, failed = 0;
 
+<<<<<<< HEAD
 // Build a minimal catalog for testing
 static Catalog make_test_catalog() {
     // We build a fake catalog manually by loading from a temp file
@@ -22,6 +28,15 @@ static Catalog make_test_catalog() {
 }
 
 // Helper: find first node of a given kind in the tree
+=======
+// build a minimal catalog for testing
+static Catalog make_test_catalog() {
+    // use an empty catalog for parser tests
+    return Catalog{};
+}
+
+// helper: find first node of a given kind in the tree
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 static const PlanNode* find_node(const PlanNode* p, PlanKind k) {
     if (!p) return nullptr;
     if (p->kind == k) return p;
@@ -35,9 +50,15 @@ static void test_simple_select() {
     Parser  parser;
     auto plan = parser.parse("SELECT id FROM customers", cat);
     assert(plan != nullptr);
+<<<<<<< HEAD
     // Should have a Project node at root
     assert(plan->kind == PlanKind::PROJECT);
     // With a Scan below
+=======
+    // should have a project node at root
+    assert(plan->kind == PlanKind::PROJECT);
+    // with a scan below
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     auto* scan = find_node(plan.get(), PlanKind::SCAN);
     assert(scan != nullptr);
     assert(scan->table_name == "customers");
@@ -61,7 +82,11 @@ static void test_two_table_join() {
     auto plan = parser.parse(
         "SELECT * FROM customers, orders WHERE customers.id = orders.customer_id", cat);
     assert(plan != nullptr);
+<<<<<<< HEAD
     // There should be a JOIN node
+=======
+    // there should be a join node
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     auto* join = find_node(plan.get(), PlanKind::JOIN);
     assert(join != nullptr);
     PASS("2-table join produces JOIN node");
@@ -150,7 +175,11 @@ static void test_three_table() {
         "WHERE customers.id = orders.customer_id "
         "AND orders.id = line_items.order_id", cat);
     assert(plan != nullptr);
+<<<<<<< HEAD
     // Should have 3 Scan nodes
+=======
+    // should have 3 scan nodes
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     auto tables = collect_tables(plan.get());
     assert(tables.size() == 3);
     PASS("3-table query has exactly 3 Scan nodes");

@@ -1,8 +1,13 @@
 // tests/test_e2e.cpp
+<<<<<<< HEAD
 // End-to-end correctness tests.
 // Parses and executes queries against small in-memory CSV files,
 // verifies result counts and correctness.
 // Requires that the benchmark data is already generated in benchmark/benchdata/
+=======
+// end-to-end tests.
+// parses and executes queries against tiny csv datasets.
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 
 #include <cassert>
 #include <iostream>
@@ -27,7 +32,11 @@
 
 static int passed = 0, failed = 0;
 
+<<<<<<< HEAD
 // ── Write a tiny CSV to a temp path ─────────────────────
+=======
+// write a tiny csv to a temp path
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 static std::string tmp_dir;
 
 static void write_csv(const std::string& name, const std::string& content) {
@@ -37,7 +46,11 @@ static void write_csv(const std::string& name, const std::string& content) {
 }
 
 static void setup_tiny_dataset() {
+<<<<<<< HEAD
     // customers: 4 rows, 2 in 'PK'
+=======
+    // customers: 4 rows, 2 in pk
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     write_csv("customers.csv",
         "id,name,country,age\n"
         "1,Alice,PK,30\n"
@@ -106,7 +119,11 @@ static std::vector<Row> run_query(const std::string& sql, const Catalog& cat, bo
     return exec.execute(plan.get());
 }
 
+<<<<<<< HEAD
 // ── Tests ─────────────────────────────────────────────────
+=======
+// tests
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 static void test_scan_all() {
     Catalog cat;
     cat.load(tmp_dir);
@@ -121,7 +138,11 @@ static void test_filter_equality() {
     cat.load(tmp_dir);
 
     auto rows = run_query("SELECT * FROM customers WHERE customers.country = 'PK'", cat, true);
+<<<<<<< HEAD
     assert(rows.size() == 2);  // Alice + Carol
+=======
+    assert(rows.size() == 2);  // alice + carol
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     PASS("WHERE country='PK' → 2 rows (Alice, Carol)");
 }
 
@@ -129,13 +150,21 @@ static void test_2table_join_correct_result() {
     Catalog cat;
     cat.load(tmp_dir);
 
+<<<<<<< HEAD
     // customers ⋈ orders on customer_id; expect 6 rows (all orders have a customer)
+=======
+    // customers ⋈ orders on customer_id; expect 6 rows
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     auto rows_opt   = run_query(
         "SELECT * FROM customers, orders WHERE customers.id = orders.customer_id", cat, true);
     auto rows_naive = run_query(
         "SELECT * FROM customers, orders WHERE customers.id = orders.customer_id", cat, false);
 
+<<<<<<< HEAD
     // Both modes must produce the same count
+=======
+    // both modes must produce the same count
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     assert(rows_opt.size() == rows_naive.size());
     assert(rows_opt.size() == 6);
     PASS("2-table join: optimized and naive produce same 6 rows");
@@ -145,10 +174,14 @@ static void test_filter_pushdown_correct_result() {
     Catalog cat;
     cat.load(tmp_dir);
 
+<<<<<<< HEAD
     // PK customers with year=2024 orders:
     //   Alice(PK): orders 1(2024), 2(2023) → only order 1
     //   Carol(PK): orders 4(2024), 5(2023) → only order 4
     //   → 2 result rows
+=======
+    // pk customers with year=2024 orders should give 2 rows
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     auto rows = run_query(
         "SELECT * FROM customers, orders "
         "WHERE customers.id = orders.customer_id "
@@ -161,11 +194,15 @@ static void test_3table_join_correct() {
     Catalog cat;
     cat.load(tmp_dir);
 
+<<<<<<< HEAD
     // Join customers, orders, line_items
     // PK customers: Alice(1), Carol(3)
     // Alice's year=2024 orders: 1 → 2 line items
     // Carol's year=2024 orders: 4 → 2 line items
     // → 4 result rows
+=======
+    // join customers, orders, and line_items
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     auto rows_opt   = run_query(
         "SELECT * FROM customers, orders, line_items "
         "WHERE customers.id = orders.customer_id "
@@ -178,7 +215,11 @@ static void test_3table_join_correct() {
         "AND customers.country = 'PK' AND orders.year = 2024", cat, false);
 
     assert(rows_opt.size() == rows_naive.size());
+<<<<<<< HEAD
     // 4 = Alice×order1(2 li) + Carol×order4(2 li)
+=======
+    // 4 = alice×order1(2 li) + carol×order4(2 li)
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     assert(rows_opt.size() == 4);
     PASS("3-table Q2-style: optimized == naive == 4 rows");
 }
@@ -187,7 +228,11 @@ static void test_group_by_result() {
     Catalog cat;
     cat.load(tmp_dir);
 
+<<<<<<< HEAD
     // GROUP BY country → 3 groups (PK, US, UK)
+=======
+    // group by country → 3 groups
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     auto rows = run_query(
         "SELECT customers.country, SUM(orders.total) FROM customers, orders "
         "WHERE customers.id = orders.customer_id GROUP BY customers.country", cat, true);
@@ -205,7 +250,11 @@ static void test_limit() {
 }
 
 static void test_optimizer_same_result_as_naive() {
+<<<<<<< HEAD
     // Run Q3-style 4-table query in both modes and compare counts
+=======
+    // run the 4-table query in both modes and compare counts
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     Catalog cat;
     cat.load(tmp_dir);
 
@@ -222,7 +271,11 @@ static void test_optimizer_same_result_as_naive() {
     PASS("Q3-style 4-table: optimizer and naive return identical row count");
 }
 
+<<<<<<< HEAD
 // ── Setup + main ─────────────────────────────────────────
+=======
+// setup + main
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 static std::string get_tmp_dir() {
 #ifdef _WIN32
     std::string d = "qopt_test_tmp";

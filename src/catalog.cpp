@@ -8,7 +8,10 @@
 #include <cmath>
 #include <limits>
 #include <cstring>
+<<<<<<< HEAD
 
+=======
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 #ifdef _WIN32
 #  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>

@@ -1,6 +1,11 @@
 // tests/test_join_order.cpp
+<<<<<<< HEAD
 // Unit tests for the Selinger DP join-order search.
 // Verifies on a 3-table example with known optimal plan.
+=======
+// join-order tests.
+// checks selinger dp on a known 3-table case.
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 
 #include <cassert>
 #include <iostream>
@@ -15,20 +20,32 @@
 
 static int passed = 0, failed = 0;
 
+<<<<<<< HEAD
 // Build a Scan node with manually set cardinality/cost (for DP testing without a real catalog)
+=======
+// build a scan node with manual cardinality/cost
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 static std::unique_ptr<PlanNode> make_scan_with_card(const std::string& name, double card) {
     auto n = std::make_unique<PlanNode>();
     n->kind = PlanKind::SCAN;
     n->table_name = name;
     n->cardinality = card;
     n->cost = card;  // cost of reading
+<<<<<<< HEAD
     // Schema: one dummy column so joins work
+=======
+    // one dummy column so joins work
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     SchemaCol col; col.table = name; col.name = "id"; col.type = ValType::INT;
     n->schema.push_back(col);
     return n;
 }
 
+<<<<<<< HEAD
 // Build a JoinCond between two tables
+=======
+// build a join cond between two tables
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 static JoinCond make_join_cond(const std::string& lt, const std::string& lc,
                                 const std::string& rt, const std::string& rc) {
     JoinCond jc;
@@ -45,9 +62,15 @@ static JoinCond make_join_cond(const std::string& lt, const std::string& lc,
     return jc;
 }
 
+<<<<<<< HEAD
 // ── Test: 2-table DP picks the cheaper order ─────────────
 static void test_dp_2table_order() {
     // A(10K) ⋈ B(500K): DP must pick A as build side
+=======
+// test: 2-table dp picks the cheaper order
+static void test_dp_2table_order() {
+    // a(10k) ⋈ b(500k): dp must pick a as build side
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     Catalog cat;
     CostModel cm(cat);
     JoinOrderDP dp(cm, cat);
@@ -65,6 +88,7 @@ static void test_dp_2table_order() {
     PASS("2-table DP produces a JOIN node");
 }
 
+<<<<<<< HEAD
 // ── Test: 3-table DP produces correct plan structure ─────
 static void test_dp_3table_known_optimal() {
     // Known scenario:
@@ -74,6 +98,11 @@ static void test_dp_3table_known_optimal() {
     // Conditions: small.id = medium.sid, medium.id = large.mid
     // Optimal left-deep order: small ⋈ medium ⋈ large
     // (starting with the smallest table minimises intermediate results)
+=======
+// test: 3-table dp produces correct plan structure
+static void test_dp_3table_known_optimal() {
+    // known scenario with small, medium, and large tables
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 
     Catalog cat;
     CostModel cm(cat);
@@ -92,12 +121,21 @@ static void test_dp_3table_known_optimal() {
     assert(result != nullptr);
     assert(result->kind == PlanKind::JOIN);
 
+<<<<<<< HEAD
     // The root join should handle the 3rd table (large)
     // The left subtree should itself be a join
     assert(result->left != nullptr);
     assert(result->left->kind == PlanKind::JOIN);
 
     // Verify: cost of chosen plan < cost of naive order (large ⋈ medium ⋈ small)
+=======
+    // the root join should handle the 3rd table
+    // the left subtree should also be a join
+    assert(result->left != nullptr);
+    assert(result->left->kind == PlanKind::JOIN);
+
+    // verify the chosen plan is not worse than the naive order
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     std::vector<BaseTable> naive_tables;
     naive_tables.push_back(BaseTable{"large",  make_scan_with_card("large",  100000)});
     naive_tables.push_back(BaseTable{"medium", make_scan_with_card("medium", 1000  )});
@@ -106,16 +144,26 @@ static void test_dp_3table_known_optimal() {
     naive_conds.push_back(make_join_cond("small","id","medium","sid"));
     naive_conds.push_back(make_join_cond("medium","id","large","mid"));
 
+<<<<<<< HEAD
     // Build naive left-deep: large ⋈ medium ⋈ small
     auto naive = make_scan_with_card("large", 100000);
     // Join with medium
+=======
+    // build naive left-deep: large ⋈ medium ⋈ small
+    auto naive = make_scan_with_card("large", 100000);
+    // join with medium
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     auto j1 = std::make_unique<PlanNode>(); j1->kind = PlanKind::JOIN;
     j1->left  = std::move(naive);
     j1->right = make_scan_with_card("medium", 1000);
     auto p1 = clone_pred(conds[0].pred.get()); j1->join_pred = std::move(p1);
     j1->schema = j1->left->schema; for (auto& c : j1->right->schema) j1->schema.push_back(c);
     cm.annotate(j1.get());
+<<<<<<< HEAD
     // Join with small
+=======
+    // join with small
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     auto j2 = std::make_unique<PlanNode>(); j2->kind = PlanKind::JOIN;
     j2->left  = std::move(j1);
     j2->right = make_scan_with_card("small", 10);
@@ -124,14 +172,24 @@ static void test_dp_3table_known_optimal() {
     cm.annotate(j2.get());
 
     cm.annotate(result.get());
+<<<<<<< HEAD
     // DP result should be cheaper or equal
+=======
+    // dp result should be cheaper or equal
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     assert(result->cost <= j2->cost + 1.0); // +1 for floating point
     PASS("3-table DP: chosen plan cost ≤ large⋈medium⋈small naive cost");
 }
 
+<<<<<<< HEAD
 // ── Test: extract_join_info ───────────────────────────────
 static void test_extract_join_info() {
     // Build: JOIN(cond12, JOIN(cond01, Scan(A), Scan(B)), Scan(C))
+=======
+// test: extract_join_info
+static void test_extract_join_info() {
+    // build a join tree with three scans
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     auto scanA = make_scan_with_card("A", 100);
     auto scanB = make_scan_with_card("B", 1000);
     auto scanC = make_scan_with_card("C", 50000);
@@ -159,7 +217,11 @@ static void test_extract_join_info() {
     PASS("extract_join_info: finds 3 base tables and 2 join conditions from 3-table plan");
 }
 
+<<<<<<< HEAD
 // ── Test: single table ───────────────────────────────────
+=======
+// test: single table
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 static void test_dp_single_table() {
     Catalog cat;
     CostModel cm(cat);

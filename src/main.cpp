@@ -16,9 +16,13 @@
 #include "cost_model.h"
 #include "join_order.h"
 
+<<<<<<< HEAD
 // ============================================================
 //  Optimizer mode enum
 // ============================================================
+=======
+// optimizer mode enum
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 enum class OptMode { NONE, RULES_ONLY, DP_ONLY, FULL };
 
 static const char* mode_name(OptMode m) {
@@ -31,9 +35,13 @@ static const char* mode_name(OptMode m) {
     return "?";
 }
 
+<<<<<<< HEAD
 // ============================================================
 //  Global session statistics
 // ============================================================
+=======
+// global session statistics
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 struct SessionStats {
     int    queries_run     = 0;
     int    optimizer_wins  = 0;   // optimized faster than naive
@@ -42,9 +50,13 @@ struct SessionStats {
     double total_exec_ms   = 0.0;
 } g_stats;
 
+<<<<<<< HEAD
 // ============================================================
 //  Optimizer pipeline
 // ============================================================
+=======
+// optimizer pipeline
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 std::unique_ptr<PlanNode> run_optimizer(
     std::unique_ptr<PlanNode> plan,
     const Catalog&            cat,
@@ -61,19 +73,31 @@ std::unique_ptr<PlanNode> run_optimizer(
         cm.annotate(plan.get());
         if (plan_cost_out) *plan_cost_out = plan->cost;
     } else {
+<<<<<<< HEAD
         // Rules (predicate pushdown, constant folding, etc.)
+=======
+        // rules (predicate pushdown, constant folding, etc.)
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
         if (mode == OptMode::RULES_ONLY || mode == OptMode::FULL) {
             plan = rw.rewrite(std::move(plan));
         }
         cm.annotate(plan.get());
 
+<<<<<<< HEAD
         // Selinger DP join ordering
+=======
+        // selinger dp join ordering
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
         if (mode == OptMode::DP_ONLY || mode == OptMode::FULL) {
             plan = apply_join_ordering(std::move(plan), cm, cat);
             cm.annotate(plan.get());
         }
 
+<<<<<<< HEAD
         // Join input swap (build smaller side on left)
+=======
+        // join input swap (build smaller side on left)
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
         plan = rw.apply_join_swap(std::move(plan));
         cm.annotate(plan.get());
 
@@ -87,6 +111,7 @@ std::unique_ptr<PlanNode> run_optimizer(
     return plan;
 }
 
+<<<<<<< HEAD
 // ============================================================
 //  Print result rows (up to 30 shown)
 // ============================================================
@@ -94,6 +119,13 @@ static void print_results(const std::vector<Row>& rows, const Schema& schema) {
     if (rows.empty()) { std::cout << "(0 rows)\n"; return; }
 
     // Column headers
+=======
+// print result rows (up to 30 shown)
+static void print_results(const std::vector<Row>& rows, const Schema& schema) {
+    if (rows.empty()) { std::cout << "(0 rows)\n"; return; }
+
+    // column headers
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     std::cout << "  ";
     for (auto& c : schema) {
         std::string nm = c.alias.empty() ? (c.table.empty() ? c.name : c.table + "." + c.name) : c.alias;
@@ -113,9 +145,13 @@ static void print_results(const std::vector<Row>& rows, const Schema& schema) {
     std::cout << "(" << rows.size() << " rows)\n";
 }
 
+<<<<<<< HEAD
 // ============================================================
 //  Print estimate accuracy table (for EXPLAIN + after exec)
 // ============================================================
+=======
+// print estimate accuracy table (for explain + after exec)
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 static void print_accuracy_table(const Executor& exec) {
     auto& stats = exec.actual_stats();
     if (stats.empty()) return;
@@ -136,9 +172,13 @@ static void print_accuracy_table(const Executor& exec) {
     }
 }
 
+<<<<<<< HEAD
 // ============================================================
 //  Execute a query in one mode, return timing + row count
 // ============================================================
+=======
+// execute a query in one mode, return timing + row count
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 struct RunResult {
     int64_t  result_rows = 0;
     double   exec_ms     = 0.0;
@@ -206,9 +246,13 @@ static RunResult run_query_mode(
     return res;
 }
 
+<<<<<<< HEAD
 // ============================================================
 //  Main SELECT handler — run NONE and FULL, show comparison
 // ============================================================
+=======
+// main select handler: run none and full, show comparison
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 static void handle_select(const std::string& sql, const Catalog& cat) {
     std::cout << "\n--- WITHOUT optimizer (naive plan) ---\n";
     RunResult naive = run_query_mode(sql, cat, OptMode::NONE, true, false, false);
@@ -229,16 +273,24 @@ static void handle_select(const std::string& sql, const Catalog& cat) {
     std::cout << "  plan cost ratio: " << std::fixed << std::setprecision(1) << cost_ratio << "x\n";
     std::cout << "  plan time:       " << std::fixed << std::setprecision(2) << opt.plan_ms << " ms\n\n";
 
+<<<<<<< HEAD
     // Update session stats
+=======
+    // update session stats
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     g_stats.queries_run++;
     if (speedup > 1.1) { g_stats.optimizer_wins++; g_stats.total_speedup += speedup; }
     g_stats.total_plan_ms += opt.plan_ms;
     g_stats.total_exec_ms += opt.exec_ms;
 }
 
+<<<<<<< HEAD
 // ============================================================
 //  EXPLAIN handler
 // ============================================================
+=======
+// explain handler
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 static void handle_explain(const std::string& sql, const Catalog& cat) {
     std::cout << "\n--- Naive plan ---\n";
     run_query_mode(sql, cat, OptMode::NONE, true, false, false);
@@ -247,9 +299,13 @@ static void handle_explain(const std::string& sql, const Catalog& cat) {
     std::cout << "\n";
 }
 
+<<<<<<< HEAD
 // ============================================================
 //  BENCHMARK handler — runs a query in all 4 modes
 // ============================================================
+=======
+// benchmark handler: runs a query in all 4 modes
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 static void handle_benchmark(const std::string& sql, const Catalog& cat) {
     OptMode modes[] = { OptMode::NONE, OptMode::RULES_ONLY,
                         OptMode::DP_ONLY, OptMode::FULL };
@@ -278,9 +334,13 @@ static void handle_benchmark(const std::string& sql, const Catalog& cat) {
     std::cout << "\n";
 }
 
+<<<<<<< HEAD
 // ============================================================
 //  \stats command
 // ============================================================
+=======
+// \stats command
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 static void print_stats() {
     std::cout << "\n  Session statistics:\n";
     std::cout << "  queries executed:  " << g_stats.queries_run << "\n";
@@ -301,9 +361,13 @@ static void print_stats() {
     std::cout << "\n";
 }
 
+<<<<<<< HEAD
 // ============================================================
 //  Banner
 // ============================================================
+=======
+// banner
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 static void print_banner() {
     std::cout << R"(
   ╔══════════════════════════════════════════════════════╗
@@ -320,9 +384,13 @@ static void print_banner() {
 )" << "\n";
 }
 
+<<<<<<< HEAD
 // ============================================================
 //  main
 // ============================================================
+=======
+// main
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 int main(int argc, char** argv) {
     print_banner();
 
@@ -346,13 +414,21 @@ int main(int argc, char** argv) {
         std::cout << "  (no data directory specified — use LOAD <dir> or --data <dir>)\n\n";
     }
 
+<<<<<<< HEAD
     // ── REPL ─────────────────────────────────────────────────
+=======
+    // repl
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
     std::string line;
     for (;;) {
         std::cout << "qopt> " << std::flush;
         if (!std::getline(std::cin, line)) break;
 
+<<<<<<< HEAD
         // Trim
+=======
+        // trim
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
         while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) line.pop_back();
         if (line.empty()) continue;
 
@@ -371,7 +447,11 @@ int main(int argc, char** argv) {
         // \help
         if (upper == "\\HELP") { print_banner(); continue; }
 
+<<<<<<< HEAD
         // LOAD <dir>
+=======
+        // load <dir>
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
         if (upper.substr(0, 4) == "LOAD") {
             std::string dir = line.substr(4);
             while (!dir.empty() && dir.front() == ' ') dir = dir.substr(1);
@@ -381,7 +461,11 @@ int main(int argc, char** argv) {
             continue;
         }
 
+<<<<<<< HEAD
         // \bench SELECT ...
+=======
+        // \bench select ...
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
         if (upper.substr(0, 6) == "\\BENCH") {
             std::string sql = line.substr(6);
             while (!sql.empty() && sql.front() == ' ') sql = sql.substr(1);
@@ -390,7 +474,11 @@ int main(int argc, char** argv) {
             continue;
         }
 
+<<<<<<< HEAD
         // EXPLAIN SELECT ...
+=======
+        // explain select ...
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
         if (upper.substr(0, 7) == "EXPLAIN") {
             std::string sql = line.substr(7);
             while (!sql.empty() && sql.front() == ' ') sql = sql.substr(1);
@@ -399,10 +487,17 @@ int main(int argc, char** argv) {
             continue;
         }
 
+<<<<<<< HEAD
         // SELECT ...
         if (upper.substr(0, 6) == "SELECT") {
             if (cat.table_count() == 0) { std::cout << "No catalog loaded. Use LOAD <dir>.\n"; continue; }
             // Accumulate multi-line queries
+=======
+        // select ...
+        if (upper.substr(0, 6) == "SELECT") {
+            if (cat.table_count() == 0) { std::cout << "No catalog loaded. Use LOAD <dir>.\n"; continue; }
+            // accumulate multi-line queries
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
             std::string sql = line;
             while (sql.find(';') == std::string::npos) {
                 std::cout << "   ... " << std::flush;
@@ -410,7 +505,11 @@ int main(int argc, char** argv) {
                 if (!std::getline(std::cin, cont)) break;
                 sql += " " + cont;
             }
+<<<<<<< HEAD
             // Strip semicolons
+=======
+            // strip semicolons
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
             while (!sql.empty() && (sql.back() == ';' || sql.back() == ' ')) sql.pop_back();
             handle_select(sql, cat);
             continue;

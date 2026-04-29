@@ -19,6 +19,10 @@
 #ifdef _WIN32
 #include <direct.h>
 #endif
+<<<<<<< HEAD
+=======
+using namespace std;
+>>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 
 // ── PRNG (LCG) for reproducibility across platforms ────────
 static uint64_t rng_state = 42424242ULL;
