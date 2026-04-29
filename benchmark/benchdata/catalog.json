@@ -1,0 +1,49 @@
+{
+  "tables": [
+    {
+      "name": "customers",
+      "row_count": 10000,
+      "csv_path": "benchmark/benchdata\\customers.csv",
+      "cols": [
+        {"name":"id","type":"INT","distinct_count":10000,"min_val":1,"max_val":10000,"null_count":0,"min_str":"","max_str":""},
+        {"name":"name","type":"TEXT","distinct_count":10000,"min_val":1.79769e+308,"max_val":-1.79769e+308,"null_count":0,"min_str":"Customer_00001","max_str":"Customer_10000"},
+        {"name":"country","type":"TEXT","distinct_count":24,"min_val":1.79769e+308,"max_val":-1.79769e+308,"null_count":0,"min_str":"AR","max_str":"ZA"},
+        {"name":"age","type":"INT","distinct_count":58,"min_val":18,"max_val":75,"null_count":0,"min_str":"","max_str":""}
+      ]
+    },
+    {
+      "name": "line_items",
+      "row_count": 1999696,
+      "csv_path": "benchmark/benchdata\\line_items.csv",
+      "cols": [
+        {"name":"order_id","type":"INT","distinct_count":200000,"min_val":1,"max_val":500000,"null_count":0,"min_str":"","max_str":""},
+        {"name":"product_id","type":"INT","distinct_count":50000,"min_val":1,"max_val":50000,"null_count":0,"min_str":"","max_str":""},
+        {"name":"qty","type":"INT","distinct_count":10,"min_val":1,"max_val":10,"null_count":0,"min_str":"","max_str":""},
+        {"name":"price","type":"DOUBLE","distinct_count":49901,"min_val":1,"max_val":500,"null_count":0,"min_str":"","max_str":""}
+      ]
+    },
+    {
+      "name": "orders",
+      "row_count": 500000,
+      "csv_path": "benchmark/benchdata\\orders.csv",
+      "cols": [
+        {"name":"id","type":"INT","distinct_count":200000,"min_val":1,"max_val":500000,"null_count":0,"min_str":"","max_str":""},
+        {"name":"customer_id","type":"INT","distinct_count":10000,"min_val":1,"max_val":10000,"null_count":0,"min_str":"","max_str":""},
+        {"name":"total","type":"DOUBLE","distinct_count":200000,"min_val":5.01,"max_val":5000,"null_count":0,"min_str":"","max_str":""},
+        {"name":"year","type":"INT","distinct_count":5,"min_val":2020,"max_val":2024,"null_count":0,"min_str":"","max_str":""},
+        {"name":"status","type":"TEXT","distinct_count":5,"min_val":1.79769e+308,"max_val":-1.79769e+308,"null_count":0,"min_str":"cancelled","max_str":"shipped"}
+      ]
+    },
+    {
+      "name": "products",
+      "row_count": 50000,
+      "csv_path": "benchmark/benchdata\\products.csv",
+      "cols": [
+        {"name":"id","type":"INT","distinct_count":50000,"min_val":1,"max_val":50000,"null_count":0,"min_str":"","max_str":""},
+        {"name":"name","type":"TEXT","distinct_count":50000,"min_val":1.79769e+308,"max_val":-1.79769e+308,"null_count":0,"min_str":"Product_00001","max_str":"Product_50000"},
+        {"name":"category","type":"TEXT","distinct_count":87,"min_val":1.79769e+308,"max_val":-1.79769e+308,"null_count":0,"min_str":"Automotive","max_str":"Toys"},
+        {"name":"supplier_id","type":"INT","distinct_count":500,"min_val":1,"max_val":500,"null_count":0,"min_str":"","max_str":""}
+      ]
+    }
+  ]
+}

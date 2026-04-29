@@ -1,0 +1,7 @@
+id,customer_id,total,year,status
+1,1,100.0,2024,shipped
+2,1,200.0,2023,delivered
+3,2,150.0,2024,pending
+4,3,300.0,2024,shipped
+5,3,50.0,2023,delivered
+6,4,400.0,2024,shipped

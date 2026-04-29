@@ -1,0 +1,11 @@
+id,name,category,supplier_id
+1,Widget,Electronics,10
+2,Gadget,Electronics,11
+3,Doohickey,Clothing,12
+4,Thingamajig,Furniture,13
+5,Whatchamacallit,Electronics,10
+6,Gizmo,Books,14
+7,Contraption,Sports,15
+8,Device,Electronics,10
+9,Apparatus,Clothing,12
+10,Instrument,Music,16
