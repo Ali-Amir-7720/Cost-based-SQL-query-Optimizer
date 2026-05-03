@@ -1,58 +1,26 @@
-```markdown
 # qopt — Cost-Based SQL Query Optimizer
-**Advanced Database Management Systems — Project 02**
-**Seraiki Stallions (Group 29):** M. Fahad Pasha (BSCS24147) · M Ali Amir (BSCS24137) · M Ali (BSCS24073)
+**Advanced Database Management Systems — Project 02 (Phase 1)**
 
----
+**Seraiki Stallions (Group 29)**
+* M. Fahad Pasha (BSCS24147) * M Ali Amir (BSCS24137) * M Ali (BSCS24073)
 
 ## Overview
+`qopt` is a SQL query optimizer demonstrating the central algorithms used in real-world DBMS. This Phase 1 release supports parsing, catalog loading, naive logical planning, materialized execution, and a basic rewrite/cost/join-order pipeline.
 
-`qopt` implements the core algorithms of a real DBMS query optimizer — no external libraries.
+**Architecture Pipeline:**
+`SQL String -> Parser -> Rewriter (fixed-point) -> Cost Model -> Selinger DP -> Executor`
 
 | Component | Implementation |
 |---|---|
-| **Parser** | Hand-written recursive-descent (~350 lines) |
-| **Catalog** | Single-pass CSV stats, JSON cache |
-| **Rule Rewriter** | Constant folding, predicate/projection pushdown, join-input swap |
-| **Cost Model** | System R cardinality formulas (equijoin, range, NDV) |
+| **Parser** | Hand-written recursive-descent (~350 lines, no parser-generator) |
+| **Catalog** | Single-pass CSV statistics, hand-written JSON cache |
+| **Rule Rewriter** | Constant folding, predicate pushdown, projection pushdown, join-input swap |
+| **Cost Model** | System R cardinality formulas (equijoin, range selectivity, NDV) |
 | **Join-Order Search** | Selinger 1979 DP over bitmask subsets — O(n²·2ⁿ) |
-| **Executor** | Materialised: Scan, Filter, Project, HashJoin, CrossProduct, GroupBy, Limit |
-
----
-
-## Build & Test
-
-```bash
-make                # Linux / WSL / MinGW (requires g++ ≥ 9, C++17)
-mingw32-make        # Windows
-make tests          # Run full test suite
-make clean          # Remove binaries and objects
-make bench          # Generate ~2.5M rows and run benchmark
-```
-
-## Run
-
-```bash
-./qopt --data benchmark/benchdata
-```
-
----
-
-## Interactive Commands
-
-| Command | Description |
-|---|---|
-| `SELECT <sql>` | Run query — shows naive vs. optimized plan + speedup |
-| `EXPLAIN SELECT <sql>` | Show plan tree without executing |
-| `\bench SELECT <sql>` | Benchmark across 4 optimizer modes |
-| `\stats` | Session statistics (queries, avg speedup, plan time) |
-| `LOAD <dir>` | Reload catalog from another data directory |
-| `\quit` | Exit |
-
----
+| **Executor** | Materialized model: Scan, Filter, Project, HashJoin, CrossProduct, GroupBy, Limit |
 
 ## Supported SQL Subset
-
+The optimizer supports querying CSV-backed tables, `WHERE` filtering, multi-table joins, single-aggregate `GROUP BY`, and `LIMIT` clauses.
 ```sql
 SELECT expr [AS alias] [, ...]  |  SELECT *
 FROM table [, table ...]
@@ -66,55 +34,46 @@ pred      ::= column op literal  |  column op column
 op        ::= = | != | < | <= | > | >=
 ```
 
----
+## Build and Test
+*(Note: Windows users should run `mingw32-make`, while Linux/WSL users can run standard `make`. Requires g++ ≥ 9 with C++17).*
 
-## Architecture
-
+Build the project and run the full test suite:
+```bash
+make tests
 ```
-SQL String → Parser → Rewriter (fixed-point) → Cost Model → Selinger DP → Executor
+
+Clean generated binaries and objects:
+```bash
+make clean
 ```
 
----
+## Generate Data and Run
+Sample CSV files and cached catalog data live under `benchmark/benchdata/`. 
 
-## Benchmark Queries
+Generate ~2.5M rows and run the benchmark automatically:
+```bash
+make bench
+```
 
-| Q | Tables | Key Filters | Expected Win |
-|---|---|---|---|
-| Q1 | 2 | `country='PK'` | ≥100× (rules) |
-| Q2 | 3 | `country='PK'`, `year=2024` | ≥100× (rules + DP) |
-| Q3 | 4 | `country='PK'`, `category='Electronics'` | Very large (DP critical) |
-| Q4 | 2 + GROUP BY | `year=2024` | Rules (pushdown) |
-| Q5 | 3 adversarial | `year=2024`, `total>4000` | Full optimizer |
+Alternatively, generate data manually and start the interactive optimizer:
+```bash
+./benchmark/gen_data benchmark/benchdata
+./qopt --data benchmark/benchdata
+```
 
----
+## Interactive Commands
+Once `qopt` is running, use the following REPL commands:
+```text
+qopt> SELECT <sql>          run query — shows naive vs optimized plan + speedup
+qopt> EXPLAIN SELECT <sql>  show plan tree without executing
+qopt> \bench SELECT <sql>   benchmark across 4 optimizer modes
+qopt> \stats                session statistics (queries, avg speedup, plan time)
+qopt> LOAD <dir>            reload catalog from another data directory
+qopt> \quit                 exit
+```
 
 ## File Structure
-
-```
-src/
-  plan.h/cpp        — Value, Schema, Expr, Pred, PlanNode types
-  catalog.h/cpp     — CSV loader, column stats, catalog.json cache
-  parser.h/cpp      — Recursive-descent SQL parser
-  executor.h/cpp    — 7 materialised operators
-  rewriter.h/cpp    — 4 rewrite rules + fixed-point loop
-  cost_model.h/cpp  — System R cardinality + cost formulas
-  join_order.h/cpp  — Selinger DP, extract_join_info, apply_join_ordering
-  main.cpp          — REPL entry point
-benchmark/
-  gen_data.cpp      — Deterministic data generator (seed=42424242)
-  run_bench.sh      — Benchmark runner (5 queries × 4 modes)
-tests/
-  test_parser.cpp   test_rewriter.cpp   test_cost.cpp
-  test_join_order.cpp   test_e2e.cpp
-```
-
----
-
-## Known Limitations
-
-- No histogram-based selectivity (equi-depth histograms are a bonus)
-- Left-deep join trees only (bushy trees are a bonus)
-- No index support — all joins use hash join or cross product
-- Fully materialised execution; no pipelining
-- No OR, OUTER JOIN, subqueries, or transactions
+* `src/`: Core optimizer components (`parser`, `catalog`, `rewriter`, `cost_model`, `join_order`, `executor`, `plan`).
+* `benchmark/`: Deterministic data generator and benchmark shell runner.
+* `tests/`: Unit and end-to-end correctness tests.
 ```
