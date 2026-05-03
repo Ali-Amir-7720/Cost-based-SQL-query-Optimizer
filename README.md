@@ -1,35 +1,33 @@
-<<<<<<< HEAD
+```markdown
 # qopt — Cost-Based SQL Query Optimizer
 **Advanced Database Management Systems — Project 02**
+**Seraiki Stallions (Group 29):** M. Fahad Pasha (BSCS24147) · M Ali Amir (BSCS24137) · M Ali (BSCS24073)
+
+---
 
 ## Overview
 
-`qopt` is a SQL query optimizer demonstrating the central algorithms every real DBMS uses:
+`qopt` implements the core algorithms of a real DBMS query optimizer — no external libraries.
 
 | Component | Implementation |
 |---|---|
-| **Parser** | Hand-written recursive-descent (~350 lines, no parser-generator) |
-| **Catalog** | Single-pass CSV statistics, hand-written JSON cache |
-| **Rule Rewriter** | Constant folding, predicate pushdown, projection pushdown, join-input swap |
-| **Cost Model** | System R cardinality formulas (equijoin, range selectivity, NDV) |
+| **Parser** | Hand-written recursive-descent (~350 lines) |
+| **Catalog** | Single-pass CSV stats, JSON cache |
+| **Rule Rewriter** | Constant folding, predicate/projection pushdown, join-input swap |
+| **Cost Model** | System R cardinality formulas (equijoin, range, NDV) |
 | **Join-Order Search** | Selinger 1979 DP over bitmask subsets — O(n²·2ⁿ) |
-| **Executor** | Materialised model: Scan, Filter, Project, HashJoin, CrossProduct, GroupBy, Limit |
+| **Executor** | Materialised: Scan, Filter, Project, HashJoin, CrossProduct, GroupBy, Limit |
 
-## Build
+---
 
-```bash
-# Linux / WSL / MinGW (requires g++ ≥ 9 with C++17)
-make
-
-# Windows (MSVC not tested — use MinGW or WSL)
-```
-
-## Generate benchmark data
+## Build & Test
 
 ```bash
-make bench          # builds gen_data, generates ~2.5M rows, runs benchmark
-# OR manually:
-./benchmark/gen_data benchmark/benchdata
+make                # Linux / WSL / MinGW (requires g++ ≥ 9, C++17)
+mingw32-make        # Windows
+make tests          # Run full test suite
+make clean          # Remove binaries and objects
+make bench          # Generate ~2.5M rows and run benchmark
 ```
 
 ## Run
@@ -38,16 +36,20 @@ make bench          # builds gen_data, generates ~2.5M rows, runs benchmark
 ./qopt --data benchmark/benchdata
 ```
 
+---
+
 ## Interactive Commands
 
-```
-qopt> SELECT <sql>          run query — shows naive vs optimized plan + speedup
-qopt> EXPLAIN SELECT <sql>  show plan tree without executing
-qopt> \bench SELECT <sql>   benchmark across 4 optimizer modes
-qopt> \stats                session statistics (queries, avg speedup, plan time)
-qopt> LOAD <dir>            reload catalog from another data directory
-qopt> \quit                 exit
-```
+| Command | Description |
+|---|---|
+| `SELECT <sql>` | Run query — shows naive vs. optimized plan + speedup |
+| `EXPLAIN SELECT <sql>` | Show plan tree without executing |
+| `\bench SELECT <sql>` | Benchmark across 4 optimizer modes |
+| `\stats` | Session statistics (queries, avg speedup, plan time) |
+| `LOAD <dir>` | Reload catalog from another data directory |
+| `\quit` | Exit |
+
+---
 
 ## Supported SQL Subset
 
@@ -58,27 +60,13 @@ FROM table [, table ...]
 [GROUP BY column]
 [LIMIT n]
 
-expr    ::= column | table.column | aggregate(expr) | expr * expr | literal
+expr      ::= column | table.column | aggregate(expr) | expr * expr | literal
 aggregate ::= SUM | COUNT | AVG | MIN | MAX
-pred    ::= column op literal  |  column op column
-op      ::= = | != | < | <= | > | >=
+pred      ::= column op literal  |  column op column
+op        ::= = | != | < | <= | > | >=
 ```
 
-## Run tests
-
-```bash
-make tests
-```
-
-## Benchmark Queries
-
-| Q | Tables | Key Filters | Expected Win |
-|---|---|---|---|
-| Q1 | 2 | `country='PK'` | ≥100× (rules win) |
-| Q2 | 3 | `country='PK'`, `year=2024` | ≥100× (rules + DP) |
-| Q3 | 4 | `country='PK'`, `category='Electronics'` | Very large (DP critical) |
-| Q4 | 2 + GROUP BY | `year=2024` | Rules win (pushdown) |
-| Q5 | 3 adversarial | `year=2024`, `total>4000` | Full optimizer wins |
+---
 
 ## Architecture
 
@@ -86,16 +74,21 @@ make tests
 SQL String → Parser → Rewriter (fixed-point) → Cost Model → Selinger DP → Executor
 ```
 
-No external libraries. No OR support. No OUTER JOIN. No subqueries. No transactions.
+---
 
-## Limitations
+## Benchmark Queries
 
-- No histogram-based selectivity (base project; equi-depth histograms are a bonus)
-- Left-deep join trees only (bushy trees are a bonus)
-- No index support; all joins use hash join or cross product
-- No pipelining; fully materialised at each operator
+| Q | Tables | Key Filters | Expected Win |
+|---|---|---|---|
+| Q1 | 2 | `country='PK'` | ≥100× (rules) |
+| Q2 | 3 | `country='PK'`, `year=2024` | ≥100× (rules + DP) |
+| Q3 | 4 | `country='PK'`, `category='Electronics'` | Very large (DP critical) |
+| Q4 | 2 + GROUP BY | `year=2024` | Rules (pushdown) |
+| Q5 | 3 adversarial | `year=2024`, `total>4000` | Full optimizer |
 
-## Files
+---
+
+## File Structure
 
 ```
 src/
@@ -111,42 +104,17 @@ benchmark/
   gen_data.cpp      — Deterministic data generator (seed=42424242)
   run_bench.sh      — Benchmark runner (5 queries × 4 modes)
 tests/
-  test_parser.cpp
-  test_rewriter.cpp
-  test_cost.cpp
-  test_join_order.cpp
-  test_e2e.cpp
-```
-=======
-# Cost-Based SQL Query Optimizer
-
-**Seraiki Stallions (Group 29):**  
-M. Fahad Pasha (BSCS24147) - M Ali Amir (BSCS24137) - M Ali (BSCS24073)
-
-## Phase 1 Scope
-This repo contains the phase 1 version of our SQL optimizer. We support parsing, catalog loading, naive logical planning, materialized execution, and the basic rewrite/cost/join-order pipeline used by the later phases.
-
-## What It Runs
-- `SELECT` queries on CSV-backed tables  
-- `WHERE` filtering  
-- Multi-table joins  
-- `GROUP BY` with a single aggregate function  
-- `LIMIT` clause  
-- `EXPLAIN` and benchmark-style plan comparisons  
-
-## Build And Test
-From a Windows shell with `mingw32-make` available:
-
-```bash
-mingw32-make tests
+  test_parser.cpp   test_rewriter.cpp   test_cost.cpp
+  test_join_order.cpp   test_e2e.cpp
 ```
 
-That builds the project and runs the full test suite. To clean generated binaries and objects:
+---
 
-```bash
-mingw32-make clean
+## Known Limitations
+
+- No histogram-based selectivity (equi-depth histograms are a bonus)
+- Left-deep join trees only (bushy trees are a bonus)
+- No index support — all joins use hash join or cross product
+- Fully materialised execution; no pipelining
+- No OR, OUTER JOIN, subqueries, or transactions
 ```
-
-## Data
-Sample CSV files and cached catalog data live under `benchmark/benchdata/`.
->>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
