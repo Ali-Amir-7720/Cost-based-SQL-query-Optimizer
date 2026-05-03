@@ -1,5 +1,5 @@
-# qopt — Cost-Based SQL Query Optimizer
-**Advanced Database Management Systems — Project 02 (Phase 1)**
+# qopt - Cost-Based SQL Query Optimizer
+**Advanced Database Management Systems - Project 02 (Phase 1)**
 
 **Seraiki Stallions (Group 29)**
 * M. Fahad Pasha (BSCS24147) * M Ali Amir (BSCS24137) * M Ali (BSCS24073)
