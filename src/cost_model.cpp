@@ -91,14 +91,6 @@ double CostModel::selectivity(const Pred* p) const {
     return selectivity_one(p);
 }
 
-// Selectivity of a vector of conjuncts (AND → product)
-static double combined_sel(const std::vector<std::unique_ptr<Pred>>& preds,
-                           const CostModel& cm) {
-    double sel = 1.0;
-    for (auto& p : preds) sel *= cm.selectivity(p.get());
-    return sel;
-}
-
 // ============================================================
 //  Per-operator annotation helpers
 // ============================================================
