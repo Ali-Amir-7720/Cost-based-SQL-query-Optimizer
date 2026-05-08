@@ -1,14 +1,3 @@
-// benchmark/gen_data.cpp
-// Deterministic CSV data generator for the qopt benchmark dataset.
-// Usage:   gen_data <output_dir>
-// Seed:    42424242 (fixed — produces reproducible data)
-//
-// Tables generated:
-//   customers  (10,000 rows): id, name, country, age
-//   orders     (500,000 rows): id, customer_id, total, year, status
-//   line_items (2,000,000 rows): order_id, product_id, qty, price
-//   products   (50,000 rows):  id, name, category, supplier_id
-
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -19,12 +8,9 @@
 #ifdef _WIN32
 #include <direct.h>
 #endif
-<<<<<<< HEAD
-=======
 using namespace std;
->>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
 
-// ── PRNG (LCG) for reproducibility across platforms ────────
+//PRNG (LCG) for reproducibility across platforms
 static uint64_t rng_state = 42424242ULL;
 static uint64_t rng_next() {
     rng_state = rng_state * 6364136223846793005ULL + 1442695040888963407ULL;
@@ -40,16 +26,16 @@ static const char* rng_pick(const char* const* arr, int n) {
     return arr[rng_next() % (uint64_t)n];
 }
 
-// ── Static lookup tables ───────────────────────────────────
+//static lookup tables
 static const char* COUNTRIES[] = {
     "PK","US","UK","DE","FR","IN","CN","JP","AU","CA",
     "BR","MX","IT","ES","NL","SE","NO","PL","KR","SG",
     "ZA","NG","EG","AR"
-};  // 24 distinct — 'PK' appears ~1/24 ≈ 4.2%
+}; 
 
 static const char* STATUSES[] = { "pending","shipped","delivered","cancelled","returned" };
 
-// 87 distinct categories — 'Electronics' is one of them (~1.1%)
+//87 distinct categories — 'Electronics' is one of them (~1.1%)
 static const char* CATEGORIES[87];
 static void init_categories() {
     CATEGORIES[0]  = "Electronics";
@@ -63,9 +49,9 @@ static void init_categories() {
     CATEGORIES[15] = "Food";        CATEGORIES[16] = "Pets";
     CATEGORIES[17] = "Industrial";  CATEGORIES[18] = "Jewelry";
     CATEGORIES[19] = "Luggage";
-    // Fill remaining 67 with generated names
+    //fill remaining 67 with generated names
+    static char bufs[67][16];
     for (int i = 20; i < 87; i++) {
-        static char bufs[67][16];
         snprintf(bufs[i-20], 16, "Cat%02d", i);
         CATEGORIES[i] = bufs[i-20];
     }
@@ -78,7 +64,7 @@ static std::string gen_name(const char* prefix, int id) {
     return buf;
 }
 
-// ── mkdir portable ─────────────────────────────────────────
+//mkdir portable
 static void ensure_dir(const std::string& dir) {
 #ifdef _WIN32
     _mkdir(dir.c_str());
@@ -87,7 +73,7 @@ static void ensure_dir(const std::string& dir) {
 #endif
 }
 
-// ── Table generators ───────────────────────────────────────
+// Table generators
 static void gen_customers(const std::string& dir) {
     std::string path = dir + "/customers.csv";
     FILE* f = fopen(path.c_str(), "w");
@@ -153,7 +139,7 @@ static void gen_line_items(const std::string& dir) {
     printf("  line_items.csv:  ~%d rows\n", li);
 }
 
-// ── Entry point ────────────────────────────────────────────
+// Entry point
 int main(int argc, char** argv) {
     if (argc < 2) {
         fprintf(stderr, "Usage: gen_data <output_dir>\n");

@@ -1,8 +1,3 @@
-#!/usr/bin/env bash
-# benchmark/run_bench.sh
-# Runs all 5 benchmark queries × 4 optimizer modes and prints the results table.
-# Must be run from the project root after: make && ./benchmark/gen_data benchmark/benchdata
-
 set -euo pipefail
 
 QOPT=./qopt
@@ -17,7 +12,7 @@ if [ ! -d "$DATADIR" ]; then
     exit 1
 fi
 
-# ── The 5 benchmark queries ────────────────────────────────
+#5 benchmark queries
 Q1="SELECT customers.name, orders.total FROM customers, orders WHERE customers.id = orders.customer_id AND customers.country = 'PK'"
 
 Q2="SELECT customers.name, orders.total FROM customers, orders, line_items WHERE customers.id = orders.customer_id AND orders.id = line_items.order_id AND customers.country = 'PK' AND orders.year = 2024"
