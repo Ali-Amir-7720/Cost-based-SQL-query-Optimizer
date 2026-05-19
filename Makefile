@@ -48,18 +48,18 @@ TEST_BINS := $(TEST_DIR)/test_parser$(EXE) \
 
 tests: $(TEST_BINS)
 	@echo "Running all tests..."
-<<<<<<< HEAD
+ifeq ($(OS),Windows_NT)
+	@.\tests\test_parser$(EXE) && echo "  PASS test_parser" || echo "  FAIL test_parser"
+	@.\tests\test_rewriter$(EXE) && echo "  PASS test_rewriter" || echo "  FAIL test_rewriter"
+	@.\tests\test_cost$(EXE) && echo "  PASS test_cost" || echo "  FAIL test_cost"
+	@.\tests\test_join_order$(EXE) && echo "  PASS test_join_order" || echo "  FAIL test_join_order"
+	@.\tests\test_e2e$(EXE) && echo "  PASS test_e2e" || echo "  FAIL test_e2e"
+else
 	@for bin in $(TEST_BINS); do \
 		echo "  $$bin"; \
 		./$$bin && echo "  PASS" || echo "  FAIL"; \
 	done
-=======
-	@.\tests\test_parser$(EXE) && echo "  PASS" || echo "  FAIL"
-	@.\tests\test_rewriter$(EXE) && echo "  PASS" || echo "  FAIL"
-	@.\tests\test_cost$(EXE) && echo "  PASS" || echo "  FAIL"
-	@.\tests\test_join_order$(EXE) && echo "  PASS" || echo "  FAIL"
-	@.\tests\test_e2e$(EXE) && echo "  PASS" || echo "  FAIL"
->>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
+endif
 
 $(TEST_DIR)/test_parser$(EXE): $(OBJS) $(TEST_DIR)/test_parser.cpp
 	$(CXX) $(CXXFLAGS) -I$(SRC_DIR) -o $@ $(OBJS) $(TEST_DIR)/test_parser.cpp
@@ -82,19 +82,29 @@ GEN := benchmark/gen_data$(EXE)
 $(GEN): benchmark/gen_data.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
-bench: all $(GEN)
+BENCH_BATCH := benchmark/run_bench_batch$(EXE)
+
+$(BENCH_BATCH): benchmark/run_bench_batch.cpp $(OBJS)
+	$(CXX) $(CXXFLAGS) -Isrc -o $@ $(OBJS) benchmark/run_bench_batch.cpp
+
+bench: all $(GEN) $(BENCH_BATCH)
+ifeq ($(OS),Windows_NT)
+	@if not exist benchmark\benchdata mkdir benchmark\benchdata
+	$(GEN) benchmark\benchdata
+	$(BENCH_BATCH) --data benchmark/benchdata --out benchmark/benchmark_results.txt
+else
 	@mkdir -p benchmark/benchdata
 	$(GEN) benchmark/benchdata
-	@echo "Data generated. Running benchmark..."
-	bash benchmark/run_bench.sh
+	./$(BENCH_BATCH) --data benchmark/benchdata --out benchmark/benchmark_results.txt
+endif
 
 # ── Clean ──────────────────────────────────────────────────
 clean:
-<<<<<<< HEAD
+ifeq ($(OS),Windows_NT)
+	-@if exist $(TARGET) del /Q $(TARGET) 2>NUL
+	-@if exist src\*.o del /Q src\*.o 2>NUL
+	-@if exist tests\test_*.exe del /Q tests\test_*.exe 2>NUL
+	-@if exist benchmark\gen_data.exe del /Q benchmark\gen_data.exe 2>NUL
+else
 	$(RM) $(TARGET) $(OBJS) $(MAIN_OBJ) $(TEST_BINS) $(GEN) 2>/dev/null; true
-=======
-	-@if exist $(TARGET) del /Q $(TARGET) >NUL 2>&1
-	-@if exist src\*.o del /Q src\*.o >NUL 2>&1
-	-@if exist tests\*.exe del /Q tests\*.exe >NUL 2>&1
-	-@if exist benchmark\*.exe del /Q benchmark\*.exe >NUL 2>&1
->>>>>>> 5ffcc872dc5e9ad8dfa2b98676c9177934a11177
+endif

@@ -263,12 +263,9 @@ void Rewriter::collect_needed(const PlanNode* node,
 
 std::unique_ptr<PlanNode> Rewriter::projection_pushdown(std::unique_ptr<PlanNode> node) {
     if (!node) return nullptr;
-    // only apply at scan nodes
-    if (node->kind == PlanKind::SCAN) {
-        // schema is already set; nothing to push further
-        return node;
-    }
-    // keep this a no-op here; predicate pushdown is the main win
+    if (node->left)  node->left  = projection_pushdown(std::move(node->left));
+    if (node->right) node->right = projection_pushdown(std::move(node->right));
+    return node;
 }
 
 // fixed-point loop
