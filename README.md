@@ -1,79 +1,61 @@
-# qopt - Cost-Based SQL Query Optimizer
-**Advanced Database Management Systems - Project 02 (Phase 1)**
+# qopt — Cost-Based SQL Query Optimizer
 
-**Seraiki Stallions (Group 29)**
-* M. Fahad Pasha (BSCS24147) * M Ali Amir (BSCS24137) * M Ali (BSCS24073)
+**Advanced Database Management Systems — Project 02 (Phases 1–3 complete)**
+
+**Seraiki Stallions (Group 29)**  
+M. Fahad Pasha (BSCS24147) · M Ali Amir (BSCS24137) · M Ali (BSCS24073)
 
 ## Overview
-`qopt` is a SQL query optimizer demonstrating the central algorithms used in real-world DBMS. This Phase 1 release supports parsing, catalog loading, naive logical planning, materialized execution, and a basic rewrite/cost/join-order pipeline.
 
-**Architecture Pipeline:**
-`SQL String -> Parser -> Rewriter (fixed-point) -> Cost Model -> Selinger DP -> Executor`
+`qopt` is a cost-based SQL query optimizer over CSV-backed tables. It implements the full pipeline from the course manual:
 
-| Component | Implementation |
-|---|---|
-| **Parser** | Hand-written recursive-descent (~350 lines, no parser-generator) |
-| **Catalog** | Single-pass CSV statistics, hand-written JSON cache |
-| **Rule Rewriter** | Constant folding, predicate pushdown, projection pushdown, join-input swap |
-| **Cost Model** | System R cardinality formulas (equijoin, range selectivity, NDV) |
-| **Join-Order Search** | Selinger 1979 DP over bitmask subsets — O(n²·2ⁿ) |
-| **Executor** | Materialized model: Scan, Filter, Project, HashJoin, CrossProduct, GroupBy, Limit |
+`SQL → Parser → Rewriter → Cost Model → Selinger DP → Executor`
 
-## Supported SQL Subset
-The optimizer supports querying CSV-backed tables, `WHERE` filtering, multi-table joins, single-aggregate `GROUP BY`, and `LIMIT` clauses.
-```sql
-SELECT expr [AS alias] [, ...]  |  SELECT *
-FROM table [, table ...]
-[WHERE pred AND pred ...]
-[GROUP BY column]
-[LIMIT n]
+| Phase | Deliverable |
+|-------|-------------|
+| **1** | Parser, catalog, materialized executor, naive plans, interactive shell |
+| **2** | Four rewrite rules, cost model, `EXPLAIN` with estimates |
+| **3** | Selinger join-order DP, 4 optimizer modes, benchmark Q1–Q5 |
 
-expr      ::= column | table.column | aggregate(expr) | expr * expr | literal
-aggregate ::= SUM | COUNT | AVG | MIN | MAX
-pred      ::= column op literal  |  column op column
-op        ::= = | != | < | <= | > | >=
+## Build (Windows)
+
+Requires **g++** (MinGW-w64) on PATH:
+
+```bash
+mingw32-make
+mingw32-make tests
+mingw32-make bench
 ```
 
-## Build and Test
-*(Note: Windows users should run `mingw32-make`, while Linux/WSL users can run standard `make`. Requires g++ ≥ 9 with C++17).*
+On Linux/WSL use `make` instead of `mingw32-make`.
 
-Build the project and run the full test suite:
+## Run interactively
+
 ```bash
-make tests
-```
-
-Clean generated binaries and objects:
-```bash
-make clean
-```
-
-## Generate Data and Run
-Sample CSV files and cached catalog data live under `benchmark/benchdata/`. 
-
-Generate ~2.5M rows and run the benchmark automatically:
-```bash
-make bench
-```
-
-Alternatively, generate data manually and start the interactive optimizer:
-```bash
-./benchmark/gen_data benchmark/benchdata
 ./qopt --data benchmark/benchdata
 ```
 
-## Interactive Commands
-Once `qopt` is running, use the following REPL commands:
-```text
-qopt> SELECT <sql>          run query — shows naive vs optimized plan + speedup
-qopt> EXPLAIN SELECT <sql>  show plan tree without executing
-qopt> \bench SELECT <sql>   benchmark across 4 optimizer modes
-qopt> \stats                session statistics (queries, avg speedup, plan time)
-qopt> LOAD <dir>            reload catalog from another data directory
-qopt> \quit                 exit
-```
+Commands: `SELECT …`, `EXPLAIN SELECT …`, `\bench SELECT …`, `\stats`, `LOAD <dir>`, `\quit`
 
-## File Structure
-* `src/`: Core optimizer components (`parser`, `catalog`, `rewriter`, `cost_model`, `join_order`, `executor`, `plan`).
-* `benchmark/`: Deterministic data generator and benchmark shell runner.
-* `tests/`: Unit and end-to-end correctness tests.
-```
+## Benchmark
+
+- Generator: `benchmark/gen_data.cpp`
+- Batch runner: `benchmark/run_bench_batch.cpp` (invoked by `make bench`)
+- Results: `benchmark/benchmark_results.txt`, summary: `benchmark/speedup_summary.md`
+
+## Design document
+
+See **`design.md`** (export to **`design.pdf`** for submission).
+
+## Project layout
+
+| Path | Purpose |
+|------|---------|
+| `src/` | Parser, catalog, rewriter, cost model, join_order, executor, main |
+| `tests/` | Unit + e2e tests |
+| `benchmark/` | Data generator, bench driver, results |
+| `manual (2).pdf` | Course specification |
+
+## GitHub progress
+
+See **`GITHUB_PUSH.md`** for ordered commits to push phase-by-phase.

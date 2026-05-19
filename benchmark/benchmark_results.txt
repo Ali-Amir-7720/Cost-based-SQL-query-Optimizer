@@ -1,0 +1,70 @@
+qopt Benchmark — batch run
+Data: benchmark\benchdata
+
+----------------------------------------------------------------------
+  Q1 (2-table selective)
+  SELECT customers.name, orders.total FROM customers, orders WHERE customers.id = orders.customer_id AND customers.country = 'PK'
+----------------------------------------------------------------------
+Mode              Est.Cost      Time(ms)      Rows      Speedup
+----------------------------------------------------------------------
+NONE (naive)      10000530833   25001.3       OOM       1.0x
+RULES ONLY        1062500       924.5         20843     27.0x
+DP ONLY           10000530833   25001.3       OOM       1.0x
+FULL (rules + DP) 1062500       899.3         20843     27.8x
+
+----------------------------------------------------------------------
+  Q2 (3-table selective)
+  SELECT customers.name, orders.total FROM customers, orders, line_items WHERE customers.id = orders.customer_id AND orders.id = line_items.order_id AND customers.country = 'PK' AND orders.year = 2024
+----------------------------------------------------------------------
+Mode              Est.Cost      Time(ms)      Rows      Speedup
+----------------------------------------------------------------------
+NONE (naive)      1999697500098969649992437502.5 OOM       1.0x
+RULES ONLY        5216046       4041.8        16907     12369004.5x
+DP ONLY           1999697500098969649992437502.5 OOM       1.0x
+FULL (rules + DP) 5216046       4012.1        16907     12460539.6x
+
+----------------------------------------------------------------------
+  Q3 (4-table selective)
+  SELECT customers.name, products.name FROM customers, orders, line_items, products WHERE customers.id = orders.customer_id AND orders.id = line_items.order_id AND line_items.product_id = products.id AND customers.country = 'PK' AND products.category = 'Electronics'
+----------------------------------------------------------------------
+Mode              Est.Cost      Time(ms)      Rows      Speedup
+----------------------------------------------------------------------
+NONE (naive)      -92233720368547758082499646246022506.5OOM       1.0x
+RULES ONLY        5605266       4087.2        922       611583939583.8x
+DP ONLY           -92233720368547758082499621874811256.5OOM       1.0x
+FULL (rules + DP) 5310043       4070.2        922       614136777400.8x
+
+  Q3 estimate accuracy (FULL optimizer):
+  Operator              Estimated     Actual        Ratio
+  Scan(customers)       10000         10000         1.00x
+  Filter                416           415           1.00x
+  Scan(products)        50000         50000         1.00x
+  Filter                574           576           1.00x
+  Scan(line_items)      1999696       1999696       1.00x
+  HashJoin              22985         22878         1.00x
+  Scan(orders)          500000        500000        1.00x
+  HashJoin              57462         22878         2.51x
+  HashJoin              2394          922           2.60x
+  Project               2394          922           2.60x
+
+----------------------------------------------------------------------
+  Q4 (aggregation)
+  SELECT customers.country, SUM(orders.total) FROM customers, orders WHERE customers.id = orders.customer_id AND orders.year = 2024 GROUP BY customers.country
+----------------------------------------------------------------------
+Mode              Est.Cost      Time(ms)      Rows      Speedup
+----------------------------------------------------------------------
+NONE (naive)      10000610000   25001.5       OOM       1.0x
+RULES ONLY        1330000       1008.0        24        24.8x
+DP ONLY           10000610000   25001.5       OOM       1.0x
+FULL (rules + DP) 1330000       747.9         24        33.4x
+
+----------------------------------------------------------------------
+  Q5 (adversarial)
+  SELECT customers.name, orders.total FROM customers, orders, line_items WHERE customers.id = orders.customer_id AND orders.id = line_items.order_id AND orders.year = 2024 AND orders.total > 4000
+----------------------------------------------------------------------
+Mode              Est.Cost      Time(ms)      Rows      Speedup
+----------------------------------------------------------------------
+NONE (naive)      1999697500098969649992437502.5 OOM       1.0x
+RULES ONLY        5509812       4268.7        80985     11711399.6x
+DP ONLY           1999697500098969649992437502.5 OOM       1.0x
+FULL (rules + DP) 5509812       4159.1        80985     12020023.2x
