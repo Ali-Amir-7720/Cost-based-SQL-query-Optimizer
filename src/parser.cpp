@@ -8,7 +8,7 @@
 //  Tokeniser
 // ============================================================
 static bool isident(char c) { return isalnum((unsigned char)c) || c == '_'; }
-
+//Tokkind checkws
 static TokKind keyword(const std::string& s) {
     std::string u = s;
     for (char& c : u) c = (char)toupper((unsigned char)c);
