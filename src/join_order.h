@@ -11,10 +11,13 @@
 //
 //  Input:  set of base tables (with pushed-down filters), join
 //          conditions between them.
-//  Output: cheapest left-deep join tree joining all tables.
+//  Output: cheapest join tree (bushy or left-deep) joining all tables.
 //
 //  State:  dp[S] = cheapest plan joining exactly the tables
 //          encoded in bitmask S.
+//
+//  Phase 3 bonus: the DP enumerates ALL proper non-empty subsets of S,
+//  enabling bushy join trees (e.g. (A⋈B)⋈(C⋈D)) not just left-deep.
 //
 //  n ≤ MAX_TABLES (≤ 8 for bonus); base project uses n ≤ 4.
 // ============================================================
@@ -70,12 +73,24 @@ private:
                                const std::vector<BaseTable>&  tables,
                                const std::vector<JoinCond>&   conds) const;
 
+    // Find a join condition connecting any table in left_mask to any in right_mask
+    // (used by bushy DP to check connectivity between two sub-plans)
+    const Pred* find_join_cond_masks(int left_mask, int right_mask,
+                                     const std::vector<BaseTable>&  tables,
+                                     const std::vector<JoinCond>&   conds) const;
+
     // Build a HashJoin node for the plan(left_mask) ⋈ base_table[t_idx]
     std::unique_ptr<PlanNode> make_join(
         std::unique_ptr<PlanNode> left_plan,
         int                       t_idx,
         const Pred*               cond,
         const std::vector<BaseTable>& tables) const;
+
+    // Build a HashJoin node joining two arbitrary sub-plans (bushy support)
+    std::unique_ptr<PlanNode> make_join_bushy(
+        std::unique_ptr<PlanNode> left_plan,
+        std::unique_ptr<PlanNode> right_plan,
+        const Pred*               cond) const;
 };
 
 // ============================================================
@@ -88,7 +103,7 @@ void extract_join_info(const PlanNode*         node,
                        std::vector<JoinCond>&  conds);
 
 // Walk a plan tree; when a join-root subtree is found replace it with
-// the optimal left-deep order produced by Selinger DP.
+// the optimal bushy join order produced by Selinger DP.
 std::unique_ptr<PlanNode> apply_join_ordering(
     std::unique_ptr<PlanNode> plan,
     const CostModel&          cm,

@@ -84,6 +84,35 @@ const Pred* JoinOrderDP::find_join_cond(
 }
 
 // ============================================================
+//  JoinOrderDP::find_join_cond_masks
+//  Find a join condition whose sides span left_mask and right_mask
+// ============================================================
+const Pred* JoinOrderDP::find_join_cond_masks(
+    int                            left_mask,
+    int                            right_mask,
+    const std::vector<BaseTable>&  tables,
+    const std::vector<JoinCond>&   conds) const
+{
+    for (auto& jc : conds) {
+        int l_idx = -1, r_idx = -1;
+        for (int i = 0; i < (int)tables.size() && i < MAX_TABLES; i++) {
+            if (tables[i].name == jc.left_table)  l_idx = i;
+            if (tables[i].name == jc.right_table) r_idx = i;
+        }
+        if (l_idx < 0 || r_idx < 0) continue;
+
+        bool l_in_left  = (left_mask  & (1 << l_idx)) != 0;
+        bool r_in_right = (right_mask & (1 << r_idx)) != 0;
+        bool l_in_right = (right_mask & (1 << l_idx)) != 0;
+        bool r_in_left  = (left_mask  & (1 << r_idx)) != 0;
+
+        if ((l_in_left && r_in_right) || (l_in_right && r_in_left))
+            return jc.pred.get();
+    }
+    return nullptr;
+}
+
+// ============================================================
 //  JoinOrderDP::make_join
 //  Build a HashJoin(left_plan, base_table[t_idx]) node
 // ============================================================
@@ -97,6 +126,28 @@ std::unique_ptr<PlanNode> JoinOrderDP::make_join(
     join->kind     = PlanKind::JOIN;
     join->right    = clone_plan(tables[t_idx].plan.get());
     join->left     = std::move(left_plan);
+    if (cond) join->join_pred = clone_pred(cond);
+
+    // Re-build schema
+    join->schema = join->left->schema;
+    for (auto& c : join->right->schema) join->schema.push_back(c);
+
+    return join;
+}
+
+// ============================================================
+//  JoinOrderDP::make_join_bushy
+//  Build a HashJoin(left_plan, right_plan) for two arbitrary sub-plans
+// ============================================================
+std::unique_ptr<PlanNode> JoinOrderDP::make_join_bushy(
+    std::unique_ptr<PlanNode> left_plan,
+    std::unique_ptr<PlanNode> right_plan,
+    const Pred*               cond) const
+{
+    auto join      = std::make_unique<PlanNode>();
+    join->kind     = PlanKind::JOIN;
+    join->left     = std::move(left_plan);
+    join->right    = std::move(right_plan);
     if (cond) join->join_pred = clone_pred(cond);
 
     // Re-build schema
@@ -135,34 +186,42 @@ std::unique_ptr<PlanNode> JoinOrderDP::find_best_order(
     }
 
     // ── Step 2: Fill subsets of size 2 .. n ──────────────────
+    // BONUS (Phase 3): enumerate ALL proper non-empty subsets L of S,
+    // setting R = S \ L.  This expands the search space from left-deep
+    // trees to full bushy trees in O(3^n) time.
     for (int size = 2; size <= n; size++) {
         for (int S = 1; S < total; S++) {
             if (popcount(S) != size) continue;
 
-            // Try each table t ∈ S as the right (probe) side
-            for (int t = 0; t < n; t++) {
-                if (!(S & (1 << t))) continue;   // t not in S
-                int L = S ^ (1 << t);             // left subset
-                if (!dp[L].valid) continue;
+            // Check if any split of S has a join condition (to avoid
+            // forcing cross products when a connected split exists)
+            bool any_connected = false;
+            for (int L = (S - 1) & S; L > 0 && !any_connected; L = (L - 1) & S) {
+                int R = S ^ L;
+                if (!dp[L].valid || !dp[R].valid) continue;
+                if (find_join_cond_masks(L, R, tables, conds)) any_connected = true;
+            }
 
-                // Find join condition between L and t
-                const Pred* jcond = find_join_cond(L, t, tables, conds);
+            // Enumerate ALL proper non-empty subsets L of S
+            for (int L = (S - 1) & S; L > 0; L = (L - 1) & S) {
+                int R = S ^ L;
 
-                // Skip if no join condition (cross product) — unless forced
-                // (only force when no other option remains)
-                if (!jcond) {
-                    // See if any other t' in S has a condition with L
-                    bool found_alt = false;
-                    for (int t2 = 0; t2 < n && !found_alt; t2++) {
-                        if (t2 == t || !(S & (1 << t2))) continue;
-                        if (find_join_cond(L ^ (1 << t2), t2, tables, conds)) found_alt = true;
-                        // Also check t2's left condition
-                        if (find_join_cond(L, t2, tables, conds)) found_alt = true;
-                    }
-                    if (found_alt) continue;  // better split exists → skip cross product
-                }
+                // Both halves must already have optimal plans
+                if (!dp[L].valid || !dp[R].valid) continue;
 
-                auto candidate = make_join(clone_plan(dp[L].plan.get()), t, jcond, tables);
+                // Avoid evaluating the same (L,R) pair twice as (R,L)
+                // We keep both orderings so the cost model can pick
+                // which side to use as build (hash) vs probe.
+
+                const Pred* jcond = find_join_cond_masks(L, R, tables, conds);
+
+                // Skip cross products when a join-connected split exists
+                if (!jcond && any_connected) continue;
+
+                auto candidate = make_join_bushy(
+                    clone_plan(dp[L].plan.get()),
+                    clone_plan(dp[R].plan.get()),
+                    jcond);
                 cm_.annotate(candidate.get());
 
                 double c = candidate->cost;
