@@ -156,7 +156,7 @@ static void test_filter_pushdown_correct_result() {
     assert(rows.size() == 2);
     PASS("Q2-style: PK customers in year 2024 → 2 rows");
 }
-
+//joins tables
 static void test_3table_join_correct() {
     Catalog cat;
     cat.load(tmp_dir);
