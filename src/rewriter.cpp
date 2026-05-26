@@ -23,6 +23,7 @@ void Rewriter::reattach_schemas(PlanNode* node) const {
             if (node->left) node->schema = node->left->schema;
             break;
         case PlanKind::JOIN:
+        case PlanKind::SORT_MERGE_JOIN:
         case PlanKind::CROSS_PRODUCT:
             node->schema = make_join_schema(node->left.get(), node->right.get());
             break;

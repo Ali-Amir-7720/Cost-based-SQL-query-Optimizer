@@ -22,6 +22,7 @@ private:
     void annotate_scan         (PlanNode* node) const;
     void annotate_filter       (PlanNode* node) const;
     void annotate_join         (PlanNode* node) const;
+    void annotate_sort_merge_join(PlanNode* node) const;
     void annotate_cross_product(PlanNode* node) const;
     void annotate_project      (PlanNode* node) const;
     void annotate_groupby      (PlanNode* node) const;

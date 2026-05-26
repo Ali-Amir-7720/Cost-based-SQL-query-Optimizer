@@ -222,26 +222,41 @@ static void handle_benchmark(const std::string& sql, const Catalog& cat) {
     OptMode modes[] = { OptMode::NONE, OptMode::RULES_ONLY,
                         OptMode::DP_ONLY, OptMode::FULL };
     std::cout << "\n  Benchmark: " << sql.substr(0, 60) << "...\n";
-    std::cout << "  " << std::string(70, '-') << "\n";
+    std::cout << "  " << std::string(78, '-') << "\n";
     std::cout << "  " << std::left
               << std::setw(18) << "Mode"
-              << std::setw(14) << "Est.Cost"
-              << std::setw(14) << "Time(ms)"
+              << std::setw(16) << "Est.Cost"
+              << std::setw(12) << "Time(ms)"
               << std::setw(10) << "Rows"
               << "Speedup\n";
-    std::cout << "  " << std::string(70, '-') << "\n";
+    std::cout << "  " << std::string(78, '-') << "\n";
 
-    double base_ms = -1.0;
+    double base_ms   = -1.0;
+    double base_cost  = -1.0;
     for (auto m : modes) {
         RunResult r = run_query_mode(sql, cat, m, false, false, false);
-        if (base_ms < 0) base_ms = r.exec_ms;
-        double speedup = (r.exec_ms > 0) ? base_ms / r.exec_ms : 1.0;
+        if (base_ms   < 0) base_ms   = r.exec_ms;
+        if (base_cost < 0) base_cost = r.plan_cost;
+
+        // Use timing speedup when baseline ran; fall back to cost ratio when OOMed
+        double speedup;
+        bool cost_based = false;
+        if (base_ms > 0.0 && r.exec_ms > 0.0) {
+            speedup = base_ms / r.exec_ms;
+        } else if (r.plan_cost > 0.0 && base_cost > 0.0) {
+            speedup    = base_cost / r.plan_cost;
+            cost_based = true;
+        } else {
+            speedup = 1.0;
+        }
+
         std::cout << "  " << std::left
                   << std::setw(18) << mode_name(m)
-                  << std::setw(14) << (int64_t)r.plan_cost
-                  << std::setw(14) << std::fixed << std::setprecision(1) << r.exec_ms
+                  << std::setw(16) << (int64_t)r.plan_cost
+                  << std::setw(12) << std::fixed << std::setprecision(1) << r.exec_ms
                   << std::setw(10) << r.result_rows
-                  << std::setprecision(1) << speedup << "x\n";
+                  << std::setprecision(1) << speedup << "x"
+                  << (cost_based ? " (cost)" : "") << "\n";
     }
     std::cout << "\n";
 }
@@ -270,9 +285,10 @@ static void print_banner() {
     std::cout << R"(
   qopt - Cost-Based SQL Query Optimizer v1.0
   Advanced DBMS Project 02 (Phases 1-3)
+  Bonus: Bushy Join Trees | Equi-depth Histograms | Sort-Merge Join
   Commands:
-    SELECT ...        run query (shows naive vs optimised)
-    EXPLAIN SELECT .. show plan without executing
+    SELECT ...        run query (shows naive vs optimised + accuracy)
+    EXPLAIN SELECT .. show plan tree without executing
     \bench SELECT ..  benchmark query across 4 optimizer modes
     \stats            show session statistics
     LOAD <dir>        reload catalog from data directory

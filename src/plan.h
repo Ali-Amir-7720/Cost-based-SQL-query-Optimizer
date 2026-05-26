@@ -99,7 +99,7 @@ enum class Op      { EQ, NEQ, LT, LE, GT, GE, MUL, ADD, SUB, DIV };
 enum class AggType { SUM, COUNT, AVG, MIN, MAX };
 enum class ExprKind{ COL_REF, LITERAL, BINARY_OP, AGGREGATE };
 enum class PredKind{ EXPR_OP_EXPR, ALWAYS_TRUE, ALWAYS_FALSE };
-enum class PlanKind{ SCAN, FILTER, JOIN, CROSS_PRODUCT, PROJECT, GROUPBY, LIMIT, EMPTY };
+enum class PlanKind{ SCAN, FILTER, JOIN, SORT_MERGE_JOIN, CROSS_PRODUCT, PROJECT, GROUPBY, LIMIT, EMPTY };
 
 inline std::string op_str(Op op) {
     switch (op) {

@@ -96,6 +96,11 @@ std::string plan_to_string(const PlanNode* p) {
                 << "|" << plan_to_string(p->left.get())
                 << "|" << plan_to_string(p->right.get()) << ")";
             break;
+        case PlanKind::SORT_MERGE_JOIN:
+            oss << "SMJ(" << (p->join_pred ? p->join_pred->to_string() : "X")
+                << "|" << plan_to_string(p->left.get())
+                << "|" << plan_to_string(p->right.get()) << ")";
+            break;
         case PlanKind::CROSS_PRODUCT:
             oss << "CROSS(" << plan_to_string(p->left.get())
                 << "|" << plan_to_string(p->right.get()) << ")";
@@ -159,6 +164,15 @@ std::string explain_plan(const PlanNode* p, int indent) {
 
         case PlanKind::JOIN:
             oss << pad << "HashJoin("
+                << (p->join_pred ? p->join_pred->to_string() : "CROSS") << ")"
+                << " [est " << card_str(p->cardinality) << " rows, cost "
+                << (int64_t)p->cost << "]\n";
+            oss << explain_plan(p->left.get(),  indent + 1);
+            oss << explain_plan(p->right.get(), indent + 1);
+            break;
+
+        case PlanKind::SORT_MERGE_JOIN:
+            oss << pad << "SortMergeJoin("
                 << (p->join_pred ? p->join_pred->to_string() : "CROSS") << ")"
                 << " [est " << card_str(p->cardinality) << " rows, cost "
                 << (int64_t)p->cost << "]\n";

@@ -13,6 +13,7 @@ struct ColStats {
     double      max_val       = 0.0;
     int64_t     null_count    = 0;
     std::string min_str, max_str;
+    std::vector<double> histogram; // 32 equi-depth buckets for numeric cols
 };
 
 struct TableMeta {

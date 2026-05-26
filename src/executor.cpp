@@ -306,6 +306,66 @@ std::vector<Row> Executor::exec_join(const PlanNode* node) {
 }
 
 // ============================================================
+//  SortMergeJoin
+// ============================================================
+std::vector<Row> Executor::exec_sort_merge_join(const PlanNode* node) {
+    if (!node->join_pred) return exec_cross_product(node);
+
+    auto left_rows  = execute(node->left.get());
+    auto right_rows = execute(node->right.get());
+    const Schema& ls = node->left->schema;
+    const Schema& rs = node->right->schema;
+
+    const Pred* jp = node->join_pred.get();
+    int lkey = find_col(ls, jp->lhs->tbl, jp->lhs->col);
+    int rkey = find_col(rs, jp->rhs->tbl, jp->rhs->col);
+    if (lkey < 0 && rkey < 0) {
+        lkey = find_col(ls, jp->rhs->tbl, jp->rhs->col);
+        rkey = find_col(rs, jp->lhs->tbl, jp->lhs->col);
+    }
+    if (lkey < 0 || rkey < 0) return exec_cross_product(node);
+
+    // Sort left_rows
+    std::sort(left_rows.begin(), left_rows.end(), [&](const Row& a, const Row& b) {
+        return value_cmp(a[lkey], b[lkey]) < 0;
+    });
+
+    // Sort right_rows
+    std::sort(right_rows.begin(), right_rows.end(), [&](const Row& a, const Row& b) {
+        return value_cmp(a[rkey], b[rkey]) < 0;
+    });
+
+    std::vector<Row> result;
+    size_t i = 0, j = 0;
+    while (i < left_rows.size() && j < right_rows.size()) {
+        int cmp = value_cmp(left_rows[i][lkey], right_rows[j][rkey]);
+        if (cmp < 0) {
+            i++;
+        } else if (cmp > 0) {
+            j++;
+        } else {
+            // Match found, handle duplicates
+            size_t j_start = j;
+            while (i < left_rows.size() && value_cmp(left_rows[i][lkey], right_rows[j_start][rkey]) == 0) {
+                size_t j_curr = j_start;
+                while (j_curr < right_rows.size() && value_cmp(left_rows[i][lkey], right_rows[j_curr][rkey]) == 0) {
+                    Row out = left_rows[i];
+                    out.insert(out.end(), right_rows[j_curr].begin(), right_rows[j_curr].end());
+                    result.push_back(std::move(out));
+                    j_curr++;
+                }
+                i++;
+            }
+            j = j_start;
+            while (j < right_rows.size() && value_cmp(left_rows[i-1][lkey], right_rows[j][rkey]) == 0) j++;
+        }
+    }
+
+    record("SortMergeJoin", node->cardinality, (int64_t)result.size());
+    return result;
+}
+
+// ============================================================
 //  CrossProduct — nested loop (intentionally slow)
 // ============================================================
 std::vector<Row> Executor::exec_cross_product(const PlanNode* node) {
@@ -447,6 +507,7 @@ std::vector<Row> Executor::execute(const PlanNode* node) {
         case PlanKind::FILTER:        return exec_filter(node);
         case PlanKind::PROJECT:       return exec_project(node);
         case PlanKind::JOIN:          return exec_join(node);
+        case PlanKind::SORT_MERGE_JOIN: return exec_sort_merge_join(node);
         case PlanKind::CROSS_PRODUCT: return exec_cross_product(node);
         case PlanKind::GROUPBY:       return exec_groupby(node);
         case PlanKind::LIMIT:         return exec_limit(node);

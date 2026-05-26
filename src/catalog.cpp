@@ -115,6 +115,7 @@ bool Catalog::load_csv(TableMeta& meta) {
     //distinct tracking
     vector<set<string>> dsets(ncols);
     vector<bool> type_set(ncols, false);
+    vector<vector<double>> num_vals(ncols);
 
     string line;
     meta.row_count = 0;
@@ -141,6 +142,7 @@ bool Catalog::load_csv(TableMeta& meta) {
             if (cs.type == ValType::INT || cs.type == ValType::DOUBLE) {
                 try {
                     double num = stod(v);
+                    num_vals[i].push_back(num);
                     if (num < cs.min_val) cs.min_val = num;
                     if (num > cs.max_val) cs.max_val = num;
                 } catch (...) {}
@@ -153,6 +155,18 @@ bool Catalog::load_csv(TableMeta& meta) {
 
     for (int i = 0; i < ncols; i++) {
         meta.cols[i].distinct_count = max((int64_t)1, (int64_t)dsets[i].size());
+        if (meta.cols[i].type == ValType::INT || meta.cols[i].type == ValType::DOUBLE) {
+            if (!num_vals[i].empty()) {
+                std::sort(num_vals[i].begin(), num_vals[i].end());
+                int n = num_vals[i].size();
+                meta.cols[i].histogram.clear();
+                for (int b = 1; b <= 32; b++) {
+                    int idx = (b * n) / 32;
+                    if (idx >= n) idx = n - 1;
+                    meta.cols[i].histogram.push_back(num_vals[i][idx]);
+                }
+            }
+        }
         // If numeric but type never set (all nulls or empty), default TEXT
     }
     return true;
@@ -209,6 +223,12 @@ bool Catalog::save_cache(const string& path) const {
             f << "\"null_count\":" << cs.null_count << ",";
             f << "\"min_str\":\"" << json_esc(cs.min_str) << "\",";
             f << "\"max_str\":\"" << json_esc(cs.max_str) << "\"";
+            f << ",\"histogram\":[";
+            for (size_t k = 0; k < cs.histogram.size(); k++) {
+                if (k > 0) f << ",";
+                f << cs.histogram[k];
+            }
+            f << "]";
             f << "}";
         }
         f << "\n      ]\n    }";
@@ -239,6 +259,27 @@ static double extract_num(const string& line, const string& key) {
         num += line[pos++];
     if (num.empty()) return 0;
     try { return stod(num); } catch (...) { return 0; }
+}
+static vector<double> extract_num_array(const string& line, const string& key) {
+    vector<double> res;
+    string pat = "\"" + key + "\":[";
+    auto pos = line.find(pat);
+    if (pos == string::npos) return res;
+    pos += pat.size();
+    auto end = line.find(']', pos);
+    if (end == string::npos) return res;
+    string arr_str = line.substr(pos, end - pos);
+    size_t cur = 0;
+    while (cur < arr_str.size()) {
+        auto next = arr_str.find(',', cur);
+        if (next == string::npos) next = arr_str.size();
+        string num_str = arr_str.substr(cur, next - cur);
+        if (!num_str.empty()) {
+            try { res.push_back(stod(num_str)); } catch (...) {}
+        }
+        cur = next + 1;
+    }
+    return res;
 }
 
 bool Catalog::load_cache(const string& path) {
@@ -277,6 +318,7 @@ bool Catalog::load_cache(const string& path) {
             cur_col.null_count     = (int64_t)extract_num(line, "null_count");
             cur_col.min_str        = extract_str(line, "min_str");
             cur_col.max_str        = extract_str(line, "max_str");
+            cur_col.histogram      = extract_num_array(line, "histogram");
             continue;
         }
 

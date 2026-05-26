@@ -79,18 +79,20 @@ private:
                                      const std::vector<BaseTable>&  tables,
                                      const std::vector<JoinCond>&   conds) const;
 
-    // Build a HashJoin node for the plan(left_mask) ⋈ base_table[t_idx]
+    // Build a Join node for the plan(left_mask) ⋈ base_table[t_idx]
     std::unique_ptr<PlanNode> make_join(
         std::unique_ptr<PlanNode> left_plan,
         int                       t_idx,
         const Pred*               cond,
-        const std::vector<BaseTable>& tables) const;
+        const std::vector<BaseTable>& tables,
+        bool                      is_smj = false) const;
 
-    // Build a HashJoin node joining two arbitrary sub-plans (bushy support)
+    // Build a Join node joining two arbitrary sub-plans (bushy support)
     std::unique_ptr<PlanNode> make_join_bushy(
         std::unique_ptr<PlanNode> left_plan,
         std::unique_ptr<PlanNode> right_plan,
-        const Pred*               cond) const;
+        const Pred*               cond,
+        bool                      is_smj = false) const;
 };
 
 // ============================================================

@@ -36,6 +36,7 @@ public:
     std::vector<Row> exec_filter        (const PlanNode* node);
     std::vector<Row> exec_project       (const PlanNode* node);
     std::vector<Row> exec_join          (const PlanNode* node);
+    std::vector<Row> exec_sort_merge_join(const PlanNode* node);
     std::vector<Row> exec_cross_product (const PlanNode* node);
     std::vector<Row> exec_groupby       (const PlanNode* node);
     std::vector<Row> exec_limit         (const PlanNode* node);

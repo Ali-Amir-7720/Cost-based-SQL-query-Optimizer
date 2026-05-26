@@ -70,6 +70,19 @@ double CostModel::selectivity_one(const Pred* p) const {
         case Op::LT:
         case Op::LE: {
             if (!have_lit || cs->type == ValType::TEXT) return 1.0 / 3.0;
+            if (!cs->histogram.empty()) {
+                double lit = lit_num;
+                if (lit < cs->min_val) return 0.0;
+                if (lit >= cs->max_val) return 1.0;
+                int k = 0;
+                while (k < (int)cs->histogram.size() && cs->histogram[k] <= lit) k++;
+                if (k == (int)cs->histogram.size()) return 1.0;
+                double L = (k == 0) ? cs->min_val : cs->histogram[k - 1];
+                double R = cs->histogram[k];
+                double frac = (R > L) ? (lit - L) / (R - L) : 1.0;
+                frac = std::max(0.0, std::min(1.0, frac));
+                return (k + frac) / (double)cs->histogram.size();
+            }
             double range = cs->max_val - cs->min_val;
             if (range <= 0.0) return 0.5;
             return std::max(0.0, std::min(1.0, (lit_num - cs->min_val) / range));
@@ -77,6 +90,20 @@ double CostModel::selectivity_one(const Pred* p) const {
         case Op::GT:
         case Op::GE: {
             if (!have_lit || cs->type == ValType::TEXT) return 1.0 / 3.0;
+            if (!cs->histogram.empty()) {
+                double lit = lit_num;
+                if (lit <= cs->min_val) return 1.0;
+                if (lit > cs->max_val) return 0.0;
+                int k = 0;
+                while (k < (int)cs->histogram.size() && cs->histogram[k] <= lit) k++;
+                if (k == (int)cs->histogram.size()) return 0.0;
+                double L = (k == 0) ? cs->min_val : cs->histogram[k - 1];
+                double R = cs->histogram[k];
+                double frac = (R > L) ? (R - lit) / (R - L) : 1.0;
+                frac = std::max(0.0, std::min(1.0, frac));
+                int remaining_buckets = (int)cs->histogram.size() - 1 - k;
+                return (remaining_buckets + frac) / (double)cs->histogram.size();
+            }
             double range = cs->max_val - cs->min_val;
             if (range <= 0.0) return 0.5;
             return std::max(0.0, std::min(1.0, (cs->max_val - lit_num) / range));
@@ -142,6 +169,36 @@ void CostModel::annotate_join(PlanNode* node) const {
     node->cost        = cost;
 }
 
+void CostModel::annotate_sort_merge_join(PlanNode* node) const {
+    if (!node->left || !node->right) return;
+    double lcard = node->left->cardinality;
+    double rcard = node->right->cardinality;
+    double lcost = node->left->cost;
+    double rcost = node->right->cost;
+
+    double out_card;
+    double cost;
+
+    if (!node->join_pred) {
+        out_card = lcard * rcard;
+        cost     = lcost + rcost + out_card;
+    } else {
+        const Pred* jp = node->join_pred.get();
+        int64_t ndv_l = ndv(jp->lhs.get());
+        int64_t ndv_r = ndv(jp->rhs.get());
+        int64_t max_ndv = std::max((int64_t)1, std::max(ndv_l, ndv_r));
+
+        out_card = std::max(1.0, (lcard * rcard) / (double)max_ndv);
+        // SortMergeJoin cost: sort left, sort right, scan left + scan right + output
+        double sort_l = lcard * std::log2(std::max(2.0, lcard));
+        double sort_r = rcard * std::log2(std::max(2.0, rcard));
+        cost = lcost + rcost + sort_l + sort_r + lcard + rcard + out_card;
+    }
+
+    node->cardinality = out_card;
+    node->cost        = cost;
+}
+
 void CostModel::annotate_cross_product(PlanNode* node) const {
     double lcard = node->left  ? node->left->cardinality  : 1.0;
     double rcard = node->right ? node->right->cardinality : 1.0;
@@ -190,6 +247,7 @@ void CostModel::annotate(PlanNode* node) const {
         case PlanKind::SCAN:          annotate_scan(node);          break;
         case PlanKind::FILTER:        annotate_filter(node);        break;
         case PlanKind::JOIN:          annotate_join(node);          break;
+        case PlanKind::SORT_MERGE_JOIN: annotate_sort_merge_join(node); break;
         case PlanKind::CROSS_PRODUCT: annotate_cross_product(node); break;
         case PlanKind::PROJECT:       annotate_project(node);       break;
         case PlanKind::GROUPBY:       annotate_groupby(node);       break;

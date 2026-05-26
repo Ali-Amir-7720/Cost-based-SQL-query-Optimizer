@@ -397,6 +397,7 @@ void Parser::attach_schemas(PlanNode* node) {
             break;
 
         case PlanKind::JOIN:
+        case PlanKind::SORT_MERGE_JOIN:
         case PlanKind::CROSS_PRODUCT: {
             node->schema = node->left ? node->left->schema : Schema{};
             if (node->right)

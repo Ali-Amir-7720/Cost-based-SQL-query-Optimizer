@@ -120,10 +120,11 @@ std::unique_ptr<PlanNode> JoinOrderDP::make_join(
     std::unique_ptr<PlanNode>        left_plan,
     int                              t_idx,
     const Pred*                      cond,
-    const std::vector<BaseTable>&    tables) const
+    const std::vector<BaseTable>&    tables,
+    bool                             is_smj) const
 {
     auto join      = std::make_unique<PlanNode>();
-    join->kind     = PlanKind::JOIN;
+    join->kind     = is_smj ? PlanKind::SORT_MERGE_JOIN : PlanKind::JOIN;
     join->right    = clone_plan(tables[t_idx].plan.get());
     join->left     = std::move(left_plan);
     if (cond) join->join_pred = clone_pred(cond);
@@ -142,10 +143,11 @@ std::unique_ptr<PlanNode> JoinOrderDP::make_join(
 std::unique_ptr<PlanNode> JoinOrderDP::make_join_bushy(
     std::unique_ptr<PlanNode> left_plan,
     std::unique_ptr<PlanNode> right_plan,
-    const Pred*               cond) const
+    const Pred*               cond,
+    bool                      is_smj) const
 {
     auto join      = std::make_unique<PlanNode>();
-    join->kind     = PlanKind::JOIN;
+    join->kind     = is_smj ? PlanKind::SORT_MERGE_JOIN : PlanKind::JOIN;
     join->left     = std::move(left_plan);
     join->right    = std::move(right_plan);
     if (cond) join->join_pred = clone_pred(cond);
@@ -218,17 +220,27 @@ std::unique_ptr<PlanNode> JoinOrderDP::find_best_order(
                 // Skip cross products when a join-connected split exists
                 if (!jcond && any_connected) continue;
 
-                auto candidate = make_join_bushy(
+                // Try HashJoin
+                auto cand_hj = make_join_bushy(
                     clone_plan(dp[L].plan.get()),
                     clone_plan(dp[R].plan.get()),
-                    jcond);
-                cm_.annotate(candidate.get());
+                    jcond, false);
+                cm_.annotate(cand_hj.get());
+
+                // Try SortMergeJoin
+                auto cand_smj = make_join_bushy(
+                    clone_plan(dp[L].plan.get()),
+                    clone_plan(dp[R].plan.get()),
+                    jcond, true);
+                cm_.annotate(cand_smj.get());
+
+                auto& candidate = (cand_smj->cost < cand_hj->cost) ? cand_smj : cand_hj;
 
                 double c = candidate->cost;
                 if (!dp[S].valid || c < dp[S].cost) {
                     dp[S].cost        = c;
                     dp[S].cardinality = candidate->cardinality;
-                    dp[S].plan        = std::move(candidate);
+                    dp[S].plan        = clone_plan(candidate.get());
                     dp[S].valid       = true;
                 }
             }
@@ -244,7 +256,7 @@ std::unique_ptr<PlanNode> JoinOrderDP::find_best_order(
     auto result = clone_plan(tables[0].plan.get());
     for (int i = 1; i < n; i++) {
         const Pred* jcond = find_join_cond((1 << i) - 1, i, tables, conds);
-        result = make_join(std::move(result), i, jcond, tables);
+        result = make_join(std::move(result), i, jcond, tables, false);
     }
     cm_.annotate(result.get());
     return result;
