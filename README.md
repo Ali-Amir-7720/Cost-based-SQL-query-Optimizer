@@ -1,16 +1,16 @@
 # qopt - Cost-Based SQL Query Optimizer
-**Advanced Database Management Systems - Project 02 (Phase 1 & 2 - COMPLETE)**
+**Advanced Database Management Systems - Project 02 (Phase 1, 2 & 3 - COMPLETE)**
 
 **Seraiki Stallions (Group 29)**
 * M. Fahad Pasha (BSCS24147) * M Ali Amir (BSCS24137) * M Ali (BSCS24073)
 
-## Status: PHASE 1 & PHASE 2 FINALIZED
+## Status: PHASE 1 & PHASE 2 FINALIZED, PHASE 3 COMPLETED (Bushy Join Trees)
 
 Test Results: 44/44 tests passing
 - Parser: 11/11 tests
 - Rewriter: 7/7 tests
 - Cost Model: 14/14 tests
-- Join-Order: 4/4 tests
+- Join-Order: 4/4 tests (including bushy join verification)
 - End-to-End: 8/8 tests
 
 Build Quality
@@ -26,11 +26,13 @@ Performance
 
 ## Overview
 
-qopt is a production-grade SQL query optimizer implementing the core algorithms used in System R, PostgreSQL, and modern DBMS engines. Phase 1 and Phase 2 are complete and fully tested.
+qopt is a production-grade SQL query optimizer implementing the core algorithms used in System R, PostgreSQL, and modern DBMS engines. All three phases are complete and fully tested.
 
 Phase 1 implements: hand-written parser, catalog with per-column statistics, logical plan representation, and materialized executor.
 
 Phase 2 adds: rule-based query rewriter with 4 optimization rules, cost model using System R cardinality estimation formulas, and foundation for Selinger DP join ordering.
+
+Phase 3 adds: Bushy Join Tree support via DP over all subsets (bonus).
 
 **Architecture Pipeline:**
 `SQL String -> Parser -> Catalog -> Rewriter (fixed-point) -> Cost Model -> Executor`
@@ -41,7 +43,7 @@ Phase 2 adds: rule-based query rewriter with 4 optimization rules, cost model us
 | **Catalog** | Single-pass CSV statistics, hand-written JSON cache |
 | **Rule Rewriter** | Constant folding, predicate pushdown, projection pushdown, join-input swap |
 | **Cost Model** | System R cardinality formulas (equijoin, range selectivity, NDV) |
-| **Join-Order Search** | Selinger 1979 DP over bitmask subsets — O(n²·2ⁿ) |
+| **Join-Order Search** | Selinger 1979 DP over bitmask subsets — O(3ⁿ), **bushy join trees** supported (bonus) |
 | **Executor** | Materialized model: Scan, Filter, Project, HashJoin, CrossProduct, GroupBy, Limit |
 
 ## Supported SQL Subset
@@ -111,6 +113,8 @@ Once qopt is running, use the following REPL commands:
 
 Phase 2 implements predicate pushdown and cost-based plan selection using System R cardinality estimation.
 
+Phase 3 extends the Selinger DP to enumerate **all proper non-empty subsets** of every relation set, not just left-deep trees. This means the optimizer can discover and select **bushy join trees** when they yield lower cost — e.g., `(A ⋈ B) ⋈ (C ⋈ D)` instead of `((A ⋈ B) ⋈ C) ⋈ D`.
+
 Example: 2-table join with selective filter
 
 Naive Plan (FROM order, all predicates on top):
@@ -163,3 +167,11 @@ Phase 2:
 - Cost model: System R formulas, selectivity, cardinality estimation
 - Validation: estimate accuracy within 1.0x-1.01x on all queries
 - Compliance: hand-written parser, no external optimizer, zero errors
+
+Phase 3 (Bonus — Bushy Join Trees):
+- DP extended to enumerate all proper non-empty subsets of each relation set
+- Search space lifted from left-deep only → all bushy shapes
+- Complexity: O(3ⁿ) in number of DP evaluations (feasible for n ≤ 8)
+- `find_join_cond` accepts two masks to check connectivity between any two sub-plans
+- All existing tests still pass; bushy join unit test added and passing
+- `design.md` documents the algorithm and benchmark results
