@@ -62,7 +62,7 @@ The optimizer follows the textbook pipeline from SQL string to executed result. 
 
 ## 2. Parser and grammar
 
-The parser is a hand-written recursive-descent parser (~530 lines). No parser generators (yacc, bison, ANTLR) are used. The supported grammar:
+The parser is a hand-written recursive-descent parser (~530 lines). No parser generators (yacc, bison, ANTLR) are used. It performs strict semantic validation, ensuring all referenced tables and columns exist in the catalog before planning begins. The supported grammar:
 
 ```
 query      := SELECT select_list
@@ -472,4 +472,3 @@ All pass: `mingw32-make tests`.
 - No `OR`, subqueries, `ORDER BY`, `HAVING`, `DISTINCT`, outer joins, indexes, or transactions.
 - Naive plans may OOM on 3+ table cross products; executor enforces 10M intermediate row cap.
 - Independence assumption for selectivity can overestimate correlated predicates (~2.5× in Q3).
-- Cost estimates can overflow `double` display for astronomically bad naive plans (does not affect optimized paths).

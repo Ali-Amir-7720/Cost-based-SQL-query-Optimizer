@@ -18,6 +18,7 @@ Build Quality
 - Zero compilation warnings
 - All manual requirements (Sections 10-11) met
 - Production-ready code
+- Strict semantic validation and safety formatting for massive queries
 
 Performance
 - Up to 9,412x speedup on adversarial queries
@@ -157,7 +158,7 @@ Estimate accuracy on benchmark queries: 0.98x - 1.02x (within 2% of actual)
 ## Requirements Met
 
 Phase 1:
-- Parser: hand-written recursive descent, full SQL grammar support
+- Parser: hand-written recursive descent, full SQL grammar support, robust semantic validation
 - Catalog: per-table and per-column statistics with JSON caching
 - Executor: materialized model with 7 operators, correct results
 - Naive planner: produces correct (unoptimized) plans
