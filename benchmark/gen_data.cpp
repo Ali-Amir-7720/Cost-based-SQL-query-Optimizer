@@ -131,7 +131,12 @@ static void gen_line_items(const std::string& dir) {
         for (int j = 0; j < n_items; j++) {
             int prod_id = rng_int(1, 50000);
             int qty     = rng_int(1, 10);
-            double price = rng_dbl(1.0, 500.0);
+            double price;
+            if (rng_int(1, 100) <= 90) {
+                price = rng_dbl(1.0, 10.0);
+            } else {
+                price = rng_dbl(10.0, 1000.0);
+            }
             fprintf(f, "%d,%d,%d,%.2f\n", ord, prod_id, qty, price);
             li++;
         }

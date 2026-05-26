@@ -344,18 +344,38 @@ std::vector<std::unique_ptr<Pred>> Parser::parse_where_clause() {
 // ============================================================
 void Parser::resolve_expr(Expr* e, const std::vector<std::string>& tables) {
     if (!e) return;
-    if (e->kind == ExprKind::COL_REF && e->tbl.empty() && e->col != "*") {
-        // Find which table has this column
-        std::string found_in;
-        for (auto& t : tables) {
-            auto* tm = cat_->get_table(t);
-            if (!tm) continue;
-            if (tm->find_col(e->col)) {
-                if (!found_in.empty()) { found_in = ""; break; } // ambiguous
-                found_in = t;
+    if (e->kind == ExprKind::COL_REF && e->col != "*") {
+        if (e->tbl.empty()) {
+            // Find which table has this column
+            std::string found_in;
+            for (auto& t : tables) {
+                auto* tm = cat_->get_table(t);
+                if (!tm) continue;
+                if (tm->find_col(e->col)) {
+                    if (!found_in.empty()) {
+                        throw std::runtime_error("Parser: ambiguous column reference '" + e->col + "'");
+                    }
+                    found_in = t;
+                }
+            }
+            if (found_in.empty()) {
+                throw std::runtime_error("Parser: column '" + e->col + "' not found");
+            }
+            e->tbl = found_in;
+        } else {
+            // Validate table and column
+            bool valid_tbl = false;
+            for (auto& t : tables) {
+                if (t == e->tbl) { valid_tbl = true; break; }
+            }
+            if (!valid_tbl) {
+                throw std::runtime_error("Parser: table '" + e->tbl + "' not in FROM clause");
+            }
+            auto* tm = cat_->get_table(e->tbl);
+            if (tm && !tm->find_col(e->col)) {
+                throw std::runtime_error("Parser: column '" + e->col + "' not found in table '" + e->tbl + "'");
             }
         }
-        if (!found_in.empty()) e->tbl = found_in;
     }
     if (e->lhs) resolve_expr(e->lhs.get(), tables);
     if (e->rhs) resolve_expr(e->rhs.get(), tables);

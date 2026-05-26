@@ -5,21 +5,21 @@
       "row_count": 10000,
       "csv_path": "benchmark/benchdata\\customers.csv",
       "cols": [
-        {"name":"id","type":"INT","distinct_count":10000,"min_val":1,"max_val":10000,"null_count":0,"min_str":"","max_str":""},
-        {"name":"name","type":"TEXT","distinct_count":10000,"min_val":1.79769e+308,"max_val":-1.79769e+308,"null_count":0,"min_str":"Customer_00001","max_str":"Customer_10000"},
-        {"name":"country","type":"TEXT","distinct_count":24,"min_val":1.79769e+308,"max_val":-1.79769e+308,"null_count":0,"min_str":"AR","max_str":"ZA"},
-        {"name":"age","type":"INT","distinct_count":58,"min_val":18,"max_val":75,"null_count":0,"min_str":"","max_str":""}
+        {"name":"id","type":"INT","distinct_count":10000,"min_val":1,"max_val":10000,"null_count":0,"min_str":"","max_str":"","histogram":[313,626,938,1251,1563,1876,2188,2501,2813,3126,3438,3751,4063,4376,4688,5001,5313,5626,5938,6251,6563,6876,7188,7501,7813,8126,8438,8751,9063,9376,9688,10000]},
+        {"name":"name","type":"TEXT","distinct_count":10000,"min_val":1.79769e+308,"max_val":-1.79769e+308,"null_count":0,"min_str":"Customer_00001","max_str":"Customer_10000","histogram":[]},
+        {"name":"country","type":"TEXT","distinct_count":24,"min_val":1.79769e+308,"max_val":-1.79769e+308,"null_count":0,"min_str":"AR","max_str":"ZA","histogram":[]},
+        {"name":"age","type":"INT","distinct_count":58,"min_val":18,"max_val":75,"null_count":0,"min_str":"","max_str":"","histogram":[19,21,23,25,27,28,30,32,34,36,37,39,41,43,45,46,48,50,52,54,55,57,59,61,63,65,67,68,70,72,74,75]}
       ]
     },
     {
       "name": "line_items",
-      "row_count": 1999696,
+      "row_count": 2000099,
       "csv_path": "benchmark/benchdata\\line_items.csv",
       "cols": [
-        {"name":"order_id","type":"INT","distinct_count":200000,"min_val":1,"max_val":500000,"null_count":0,"min_str":"","max_str":""},
-        {"name":"product_id","type":"INT","distinct_count":50000,"min_val":1,"max_val":50000,"null_count":0,"min_str":"","max_str":""},
-        {"name":"qty","type":"INT","distinct_count":10,"min_val":1,"max_val":10,"null_count":0,"min_str":"","max_str":""},
-        {"name":"price","type":"DOUBLE","distinct_count":49901,"min_val":1,"max_val":500,"null_count":0,"min_str":"","max_str":""}
+        {"name":"order_id","type":"INT","distinct_count":200000,"min_val":1,"max_val":500000,"null_count":0,"min_str":"","max_str":"","histogram":[15653,31319,46923,62541,78134,93766,109375,125025,140645,156223,171819,187454,203114,218753,234372,250036,265662,281311,296965,312617,328221,343806,359427,375027,390687,406268,421863,437531,453126,468804,484403,500000]},
+        {"name":"product_id","type":"INT","distinct_count":50000,"min_val":1,"max_val":50000,"null_count":0,"min_str":"","max_str":"","histogram":[1564,3122,4689,6253,7816,9386,10956,12521,14081,15650,17215,18775,20336,21899,23458,25027,26580,28144,29698,31263,32804,34368,35933,37485,39047,40614,42167,43728,45297,46864,48428,50000]},
+        {"name":"qty","type":"INT","distinct_count":10,"min_val":1,"max_val":10,"null_count":0,"min_str":"","max_str":"","histogram":[1,1,1,2,2,2,3,3,3,4,4,4,5,5,5,5,6,6,6,7,7,7,8,8,8,9,9,9,10,10,10,10]},
+        {"name":"price","type":"DOUBLE","distinct_count":87129,"min_val":1,"max_val":1000,"null_count":0,"min_str":"","max_str":"","histogram":[1.31,1.62,1.93,2.25,2.56,2.87,3.18,3.5,3.81,4.12,4.44,4.75,5.06,5.37,5.68,6,6.31,6.62,6.93,7.25,7.56,7.87,8.19,8.5,8.81,9.13,9.44,9.75,76.77,384.37,693.38,1000]}
       ]
     },
     {
@@ -27,11 +27,11 @@
       "row_count": 500000,
       "csv_path": "benchmark/benchdata\\orders.csv",
       "cols": [
-        {"name":"id","type":"INT","distinct_count":200000,"min_val":1,"max_val":500000,"null_count":0,"min_str":"","max_str":""},
-        {"name":"customer_id","type":"INT","distinct_count":10000,"min_val":1,"max_val":10000,"null_count":0,"min_str":"","max_str":""},
-        {"name":"total","type":"DOUBLE","distinct_count":200000,"min_val":5.01,"max_val":5000,"null_count":0,"min_str":"","max_str":""},
-        {"name":"year","type":"INT","distinct_count":5,"min_val":2020,"max_val":2024,"null_count":0,"min_str":"","max_str":""},
-        {"name":"status","type":"TEXT","distinct_count":5,"min_val":1.79769e+308,"max_val":-1.79769e+308,"null_count":0,"min_str":"cancelled","max_str":"shipped"}
+        {"name":"id","type":"INT","distinct_count":200000,"min_val":1,"max_val":500000,"null_count":0,"min_str":"","max_str":"","histogram":[15626,31251,46876,62501,78126,93751,109376,125001,140626,156251,171876,187501,203126,218751,234376,250001,265626,281251,296876,312501,328126,343751,359376,375001,390626,406251,421876,437501,453126,468751,484376,500000]},
+        {"name":"customer_id","type":"INT","distinct_count":10000,"min_val":1,"max_val":10000,"null_count":0,"min_str":"","max_str":"","histogram":[315,623,937,1252,1564,1873,2184,2498,2809,3124,3432,3743,4056,4366,4678,4991,5305,5620,5930,6239,6554,6870,7180,7489,7803,8119,8433,8745,9058,9370,9686,10000]},
+        {"name":"total","type":"DOUBLE","distinct_count":200000,"min_val":5.01,"max_val":5000,"null_count":0,"min_str":"","max_str":"","histogram":[160.05,315.49,474,631.89,786.21,941.4,1097.97,1254.5,1412.02,1569.53,1724.83,1881.22,2038.23,2194.52,2349.03,2506.01,2661.19,2815.7,2972.96,3131.15,3288.81,3444.91,3599.8,3755.15,3911.64,4068.83,4223.39,4377.96,4533.51,4687.89,4843.04,5000]},
+        {"name":"year","type":"INT","distinct_count":5,"min_val":2020,"max_val":2024,"null_count":0,"min_str":"","max_str":"","histogram":[2020,2020,2020,2020,2020,2020,2021,2021,2021,2021,2021,2021,2022,2022,2022,2022,2022,2022,2022,2023,2023,2023,2023,2023,2023,2024,2024,2024,2024,2024,2024,2024]},
+        {"name":"status","type":"TEXT","distinct_count":5,"min_val":1.79769e+308,"max_val":-1.79769e+308,"null_count":0,"min_str":"cancelled","max_str":"shipped","histogram":[]}
       ]
     },
     {
@@ -39,10 +39,10 @@
       "row_count": 50000,
       "csv_path": "benchmark/benchdata\\products.csv",
       "cols": [
-        {"name":"id","type":"INT","distinct_count":50000,"min_val":1,"max_val":50000,"null_count":0,"min_str":"","max_str":""},
-        {"name":"name","type":"TEXT","distinct_count":50000,"min_val":1.79769e+308,"max_val":-1.79769e+308,"null_count":0,"min_str":"Product_00001","max_str":"Product_50000"},
-        {"name":"category","type":"TEXT","distinct_count":87,"min_val":1.79769e+308,"max_val":-1.79769e+308,"null_count":0,"min_str":"Automotive","max_str":"Toys"},
-        {"name":"supplier_id","type":"INT","distinct_count":500,"min_val":1,"max_val":500,"null_count":0,"min_str":"","max_str":""}
+        {"name":"id","type":"INT","distinct_count":50000,"min_val":1,"max_val":50000,"null_count":0,"min_str":"","max_str":"","histogram":[1563,3126,4688,6251,7813,9376,10938,12501,14063,15626,17188,18751,20313,21876,23438,25001,26563,28126,29688,31251,32813,34376,35938,37501,39063,40626,42188,43751,45313,46876,48438,50000]},
+        {"name":"name","type":"TEXT","distinct_count":50000,"min_val":1.79769e+308,"max_val":-1.79769e+308,"null_count":0,"min_str":"Product_00001","max_str":"Product_50000","histogram":[]},
+        {"name":"category","type":"TEXT","distinct_count":87,"min_val":1.79769e+308,"max_val":-1.79769e+308,"null_count":0,"min_str":"Automotive","max_str":"Toys","histogram":[]},
+        {"name":"supplier_id","type":"INT","distinct_count":500,"min_val":1,"max_val":500,"null_count":0,"min_str":"","max_str":"","histogram":[16,31,47,63,79,95,112,128,144,160,175,190,207,222,237,252,267,283,298,314,329,346,361,377,393,408,424,439,455,470,485,500]}
       ]
     }
   ]

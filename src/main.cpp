@@ -118,6 +118,7 @@ static void print_accuracy_table(const Executor& exec) {
 }
 
 struct RunResult {
+    bool     success     = true;
     int64_t  result_rows = 0;
     double   exec_ms     = 0.0;
     double   plan_cost   = 0.0;
@@ -131,21 +132,23 @@ static RunResult run_query_mode(
     OptMode            mode,
     bool               print_plan = false,
     bool               print_rows = false,
-    bool               print_accuracy = false)
+    bool               print_accuracy = false,
+    bool               quiet = false)
 {
     Parser parser;
     std::unique_ptr<PlanNode> plan;
+    RunResult res;
     try {
         plan = parser.parse(sql, cat);
     } catch (std::exception& e) {
-        std::cerr << "Parse error: " << e.what() << "\n";
-        return {};
+        if (!quiet) std::cerr << "Parse error: " << e.what() << "\n";
+        res.success = false;
+        return res;
     }
 
     double plan_cost = 0.0, plan_ms = 0.0;
     plan = run_optimizer(std::move(plan), cat, mode, &plan_cost, &plan_ms);
 
-    RunResult res;
     res.plan_cost = plan_cost;
     res.plan_ms   = plan_ms;
     res.plan_str  = explain_plan(plan.get());
@@ -159,7 +162,7 @@ static RunResult run_query_mode(
             while (std::getline(ss, l)) lines.push_back(l);
             return lines;
         }()) std::cout << "    " << line << "\n";
-        std::cout << "  Estimated cost: " << (int64_t)plan_cost << "\n";
+        std::cout << "  Estimated cost: " << std::fixed << std::setprecision(0) << plan_cost << "\n";
     }
 
     Executor exec(cat);
@@ -171,7 +174,8 @@ static RunResult run_query_mode(
     try {
         rows = exec.execute(plan.get());
     } catch (std::exception& e) {
-        std::cerr << "Execution error: " << e.what() << "\n";
+        if (!quiet) std::cerr << "Execution error: " << e.what() << "\n";
+        res.success = false;
         return res;
     }
     auto t1 = std::chrono::high_resolution_clock::now();
@@ -233,15 +237,24 @@ static void handle_benchmark(const std::string& sql, const Catalog& cat) {
 
     double base_ms   = -1.0;
     double base_cost  = -1.0;
+    bool base_failed = false;
     for (auto m : modes) {
-        RunResult r = run_query_mode(sql, cat, m, false, false, false);
-        if (base_ms   < 0) base_ms   = r.exec_ms;
-        if (base_cost < 0) base_cost = r.plan_cost;
+        RunResult r = run_query_mode(sql, cat, m, false, false, false, true);
+        if (m == OptMode::NONE) {
+            if (r.success) {
+                base_ms   = r.exec_ms;
+                base_cost = r.plan_cost;
+            } else {
+                base_failed = true;
+                base_ms   = 0.0;
+                base_cost = r.plan_cost;
+            }
+        }
 
         // Use timing speedup when baseline ran; fall back to cost ratio when OOMed
         double speedup;
         bool cost_based = false;
-        if (base_ms > 0.0 && r.exec_ms > 0.0) {
+        if (base_ms > 0.0 && r.success && r.exec_ms > 0.0) {
             speedup = base_ms / r.exec_ms;
         } else if (r.plan_cost > 0.0 && base_cost > 0.0) {
             speedup    = base_cost / r.plan_cost;
@@ -251,12 +264,24 @@ static void handle_benchmark(const std::string& sql, const Catalog& cat) {
         }
 
         std::cout << "  " << std::left
-                  << std::setw(18) << mode_name(m)
-                  << std::setw(16) << (int64_t)r.plan_cost
-                  << std::setw(12) << std::fixed << std::setprecision(1) << r.exec_ms
-                  << std::setw(10) << r.result_rows
-                  << std::setprecision(1) << speedup << "x"
-                  << (cost_based ? " (cost)" : "") << "\n";
+                  << std::setw(18) << mode_name(m);
+
+        if (r.plan_cost > 99999999999999.0) { // > 99 trillion
+            std::cout << std::setw(16) << std::scientific << std::setprecision(2) << r.plan_cost;
+        } else {
+            std::cout << std::setw(16) << std::fixed << std::setprecision(0) << r.plan_cost;
+        }
+
+        if (!r.success) {
+            std::cout << std::setw(12) << "FAIL"
+                      << std::setw(10) << "-"
+                      << "N/A\n";
+        } else {
+            std::cout << std::setw(12) << std::fixed << std::setprecision(1) << r.exec_ms
+                      << std::setw(10) << r.result_rows
+                      << std::setprecision(1) << speedup << "x"
+                      << (cost_based && base_failed && m != OptMode::NONE ? " (cost)" : "") << "\n";
+        }
     }
     std::cout << "\n";
 }

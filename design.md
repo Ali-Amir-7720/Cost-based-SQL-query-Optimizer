@@ -116,6 +116,7 @@ The optimizer's job is to transform this into a much better plan.
 | `min_value` | Smallest value (numeric columns) |
 | `max_value` | Largest value (numeric columns) |
 | `null_count` | Always 0 (data is null-free) |
+| `histogram` | 32-bucket equi-depth histogram for accurate range estimation |
 
 ### 3.3 Building the catalog
 
@@ -279,8 +280,8 @@ Each operator emits some number of rows, estimated bottom-up using catalog stati
 |-----------|-------------|
 | `col = literal` | `1 / NDV(col)` — returns 0 if literal is outside [min, max] range |
 | `col != literal` | `1 − 1 / NDV(col)` |
-| `col < literal` | `(literal − min) / (max − min)`, clamped to [0, 1] |
-| `col > literal` | `(max − literal) / (max − min)`, clamped to [0, 1] |
+| `col < literal` | Estimated using 32-bucket equi-depth histogram with linear interpolation within the partial bucket. Falls back to `(literal - min) / (max - min)` if histogram is missing. |
+| `col > literal` | Estimated using 32-bucket equi-depth histogram with linear interpolation within the partial bucket. Falls back to `(max - literal) / (max - min)` if histogram is missing. |
 | Multiple AND | Multiply selectivities (independence assumption) |
 
 #### System R equijoin formula
@@ -302,6 +303,7 @@ Cost is dimensionless (1 unit ≈ processing one row). Each operator's cost:
 | **Scan(t)** | `t.row_count` |
 | **Filter(pred, child)** | `child.cost + child.card` |
 | **HashJoin(cond, L, R)** | `L.cost + R.cost + 2 × L.card + R.card + output.card` |
+| **SortMergeJoin(cond, L, R)** | `L.cost + R.cost + L.card × log2(L.card) + R.card × log2(R.card) + L.card + R.card + output.card` |
 | **CrossProduct(L, R)** | `L.cost + R.cost + L.card × R.card` |
 | **Project(child)** | `child.cost + child.card` |
 | **GroupBy(col, child)** | `child.cost + child.card` |
@@ -317,9 +319,9 @@ The HashJoin cost accounts for: reading left child (`L.cost`), reading right chi
 
 Given *n* base tables (after predicate pushdown, each base is a `Scan` or `Filter→Scan`) and a set of equijoin conditions, the Selinger DP finds the cheapest **left-deep** binary join tree.
 
-### 6.2 Why left-deep
+### 6.2 Bushy tree exploration
 
-A left-deep tree restricts the right input of every join to be a single base table (never another join). This limits the search space to *n!* plans instead of the exponentially larger set of general (bushy) trees. For *n* = 4, there are only 24 left-deep trees vs. 120 bushy trees.
+The base optimizer typically restricts the right input of every join to be a single base table (left-deep trees). To find better plans, our DP evaluates **full bushy trees**. For every subset size, it enumerates all proper, non-empty subsets `L` and `R` of `S`. While this expands the search space from `O(n!)` to `O(3^n)`, it can find much cheaper plans when intermediate results are highly unbalanced.
 
 ### 6.3 DP pseudocode
 
@@ -340,19 +342,21 @@ function SelingerDP(tables[0..n-1], join_conditions):
     // Step 2: Fill subsets of increasing size
     for size = 2 to n:
         for each S in [1..total-1] where popcount(S) == size:
-            for each t in [0..n-1] where bit t is set in S:
-                L = S XOR (1 << t)       // left subset = S minus {t}
-                if not dp[L].valid: continue
+            for each proper subset L of S:
+                R = S XOR L
+                if not dp[L].valid or not dp[R].valid: continue
 
-                cond = find_join_condition(L, t)
-                if cond is null:
-                    // Cross product — skip if a better split exists
-                    if any other t' in S has a join condition: continue
+                cond = find_join_condition_between(L, R)
+                if cond is null and connected_split_exists: continue
 
-                candidate = HashJoin(cond, dp[L].plan, tables[t])
-                c = annotate(candidate).cost
+                candidate_hj = HashJoin(cond, dp[L].plan, dp[R].plan)
+                candidate_smj = SortMergeJoin(cond, dp[L].plan, dp[R].plan)
+                
+                best_candidate = min_cost(candidate_hj, candidate_smj)
+                
+                c = annotate(best_candidate).cost
                 if not dp[S].valid or c < dp[S].cost:
-                    dp[S] = (cost: c, card: candidate.card, plan: candidate)
+                    dp[S] = (cost: c, card: best_candidate.card, plan: best_candidate)
 
     // Step 3: Return best plan for full set
     return dp[total - 1].plan
@@ -386,6 +390,7 @@ Materialized model: each operator is a function that takes input rows and return
 | **Filter** | Evaluates each predicate conjunct; emits rows where all are true |
 | **Project** | Evaluates each expression (column ref, arithmetic, aggregate alias) |
 | **HashJoin** | Builds hash table on left input (build side), probes with right |
+| **SortMergeJoin** | Sorts both inputs by join key, then merges dealing with duplicates |
 | **CrossProduct** | Nested loop: every left × every right — capped at 10M rows |
 | **GroupBy** | Hashes on group column, maintains running aggregate per group |
 | **Limit** | Passes through at most n rows from child |
@@ -468,4 +473,3 @@ All pass: `mingw32-make tests`.
 - Naive plans may OOM on 3+ table cross products; executor enforces 10M intermediate row cap.
 - Independence assumption for selectivity can overestimate correlated predicates (~2.5× in Q3).
 - Cost estimates can overflow `double` display for astronomically bad naive plans (does not affect optimized paths).
-- Left-deep trees only (bushy trees not implemented).
