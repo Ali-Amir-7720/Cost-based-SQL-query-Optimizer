@@ -198,6 +198,23 @@ static bool is_join_kind(PlanKind k) {
     return k == PlanKind::JOIN || k == PlanKind::CROSS_PRODUCT;
 }
 
+// Helper: check if a predicate is a cross-table equijoin (col = col, different tables)
+static bool is_cross_table_equijoin(const Pred* p) {
+    if (!p || p->kind != PredKind::EXPR_OP_EXPR) return false;
+    if (p->op != Op::EQ) return false;
+    if (!p->lhs || !p->rhs) return false;
+    if (p->lhs->kind != ExprKind::COL_REF || p->rhs->kind != ExprKind::COL_REF) return false;
+    return p->lhs->tbl != p->rhs->tbl;
+}
+
+// Helper: check if a predicate references only one table
+static std::string single_table_ref(const Pred* p) {
+    if (!p) return "";
+    auto tbls = p->referenced_tables();
+    if (tbls.size() == 1) return tbls[0];
+    return "";
+}
+
 std::unique_ptr<PlanNode> apply_join_ordering(
     std::unique_ptr<PlanNode> plan,
     const CostModel&          cm,
@@ -215,6 +232,68 @@ std::unique_ptr<PlanNode> apply_join_ordering(
             return dp.find_best_order(tables, conds);
         }
         return plan;
+    }
+
+    // ── NEW: Filter sitting on top of a join/cross-product tree ────
+    // In DP-only mode (no rewriter), all WHERE predicates stay in a
+    // top-level Filter above bare cross-products.  Extract equijoin
+    // conditions from the Filter so the DP can use them, and push
+    // single-table predicates down to the matching base tables.
+    if (plan->kind == PlanKind::FILTER && plan->left && is_join_kind(plan->left->kind)) {
+        std::vector<BaseTable> tables;
+        std::vector<JoinCond>  conds;
+        extract_join_info(plan->left.get(), tables, conds);
+
+        if ((int)tables.size() >= 2) {
+            // Classify each predicate in the Filter
+            std::vector<std::unique_ptr<Pred>> remaining;
+
+            for (auto& pred : plan->preds) {
+                if (is_cross_table_equijoin(pred.get())) {
+                    // Cross-table equijoin → join condition for DP
+                    JoinCond jc;
+                    jc.left_table  = pred->lhs->tbl;
+                    jc.right_table = pred->rhs->tbl;
+                    jc.pred        = clone_pred(pred.get());
+                    conds.push_back(std::move(jc));
+                } else {
+                    std::string tbl = single_table_ref(pred.get());
+                    if (!tbl.empty()) {
+                        // Single-table predicate → push down to the base table
+                        bool pushed = false;
+                        for (auto& bt : tables) {
+                            if (bt.name == tbl) {
+                                auto filt   = std::make_unique<PlanNode>();
+                                filt->kind  = PlanKind::FILTER;
+                                filt->left  = std::move(bt.plan);
+                                filt->preds.push_back(clone_pred(pred.get()));
+                                filt->schema = filt->left->schema;
+                                bt.plan = std::move(filt);
+                                pushed  = true;
+                                break;
+                            }
+                        }
+                        if (!pushed) remaining.push_back(clone_pred(pred.get()));
+                    } else {
+                        remaining.push_back(clone_pred(pred.get()));
+                    }
+                }
+            }
+
+            JoinOrderDP dp(cm, cat);
+            auto result = dp.find_best_order(tables, conds);
+
+            // Re-wrap with any remaining predicates that could not be classified
+            if (!remaining.empty() && result) {
+                auto filt   = std::make_unique<PlanNode>();
+                filt->kind  = PlanKind::FILTER;
+                filt->schema = result->schema;
+                filt->left  = std::move(result);
+                filt->preds = std::move(remaining);
+                return filt;
+            }
+            return result;
+        }
     }
 
     // Otherwise recurse — pass non-join wrappers (Project, Filter, GroupBy, Limit)

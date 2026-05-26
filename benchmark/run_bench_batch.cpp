@@ -114,13 +114,21 @@ static void bench_query(std::ostream& out, const std::string& label, const std::
 
     OptMode modes[] = { OptMode::NONE, OptMode::RULES_ONLY, OptMode::DP_ONLY, OptMode::FULL };
     double base_ms = -1;
+    double base_cost = -1;
+    bool   base_oom  = false;
     for (auto m : modes) {
         std::vector<ActualStats> acc;
         std::vector<ActualStats>* acc_ptr =
             (q3_accuracy && m == OptMode::FULL) ? &acc : nullptr;
         BenchRow br = run_one(sql, cat, m, acc_ptr);
-        if (base_ms < 0) base_ms = br.exec_ms;
-        double sp = br.exec_ms > 0 ? base_ms / br.exec_ms : 1.0;
+        if (base_ms < 0) { base_ms = br.exec_ms; base_cost = br.plan_cost; base_oom = (br.rows < 0); }
+        double sp;
+        if (base_oom && br.rows >= 0 && br.plan_cost > 0) {
+            // Baseline OOM'd but this mode succeeded → use cost ratio
+            sp = base_cost / br.plan_cost;
+        } else {
+            sp = br.exec_ms > 0 ? base_ms / br.exec_ms : 1.0;
+        }
         out << std::left << std::setw(18) << mode_name(m)
             << std::setw(14) << std::fixed << std::setprecision(0) << br.plan_cost
             << std::setw(14) << std::fixed << std::setprecision(1) << br.exec_ms

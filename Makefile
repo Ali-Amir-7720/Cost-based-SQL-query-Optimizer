@@ -5,6 +5,7 @@ CXXFLAGS := -std=c++14 -O2 -Wall -Wextra -Wshadow -Iinclude
 ifeq ($(OS),Windows_NT)
   EXE  := .exe
   RM   := del /Q
+  CXXFLAGS += -static
 else
   EXE  :=
   RM   := rm -f

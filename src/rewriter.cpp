@@ -261,10 +261,89 @@ void Rewriter::collect_needed(const PlanNode* node,
     collect_needed(node->right.get(), needed);
 }
 
+// Helper: does the needed set contain a particular (table, col) pair?
+static bool col_needed(const std::vector<std::pair<std::string,std::string>>& needed,
+                       const std::string& tbl, const std::string& col)
+{
+    for (auto& p : needed) {
+        if (p.second == col && (p.first.empty() || tbl.empty() || p.first == tbl))
+            return true;
+    }
+    return false;
+}
+
+// Helper: build a Project node that keeps only needed columns from child's schema
+static std::unique_ptr<PlanNode> make_proj_for(
+    std::unique_ptr<PlanNode> child,
+    const std::vector<std::pair<std::string,std::string>>& needed)
+{
+    if (!child) return nullptr;
+
+    // Determine which columns from child schema are needed
+    std::vector<std::unique_ptr<Expr>> proj_exprs;
+    Schema new_schema;
+    for (auto& sc : child->schema) {
+        if (col_needed(needed, sc.table, sc.name)) {
+            auto e = std::make_unique<Expr>();
+            e->kind = ExprKind::COL_REF;
+            e->tbl  = sc.table;
+            e->col  = sc.name;
+            proj_exprs.push_back(std::move(e));
+            new_schema.push_back(sc);
+        }
+    }
+
+    // Don't insert a Project if we'd keep all columns (no reduction)
+    if (new_schema.size() >= child->schema.size() || proj_exprs.empty())
+        return child;
+
+    auto proj = std::make_unique<PlanNode>();
+    proj->kind       = PlanKind::PROJECT;
+    proj->proj_exprs = std::move(proj_exprs);
+    proj->schema     = new_schema;
+    proj->left       = std::move(child);
+    return proj;
+}
+
 std::unique_ptr<PlanNode> Rewriter::projection_pushdown(std::unique_ptr<PlanNode> node) {
     if (!node) return nullptr;
+
+    // Recurse first (bottom-up)
     if (node->left)  node->left  = projection_pushdown(std::move(node->left));
     if (node->right) node->right = projection_pushdown(std::move(node->right));
+
+    // Only push projections through JOINs and CROSS_PRODUCTs
+    if (node->kind != PlanKind::JOIN && node->kind != PlanKind::CROSS_PRODUCT)
+        return node;
+    if (!node->left || !node->right) return node;
+
+    // Collect columns needed by this node and everything above it.
+    // We can't see above from here, so we conservatively keep:
+    //  - columns referenced by this node's join_pred
+    //  - all columns in this node's output schema (will be pruned higher up)
+    // But we CAN prune columns from each child that are not in:
+    //  (a) the join predicate  AND  (b) the node's own schema
+    std::vector<std::pair<std::string,std::string>> needed;
+
+    // Columns used in this join's condition
+    if (node->join_pred) collect_pred_cols(node->join_pred.get(), needed);
+
+    // Columns in output schema (downstream needs)
+    for (auto& sc : node->schema) {
+        needed.push_back({sc.table, sc.name});
+    }
+
+    // Deduplicate
+    std::sort(needed.begin(), needed.end());
+    needed.erase(std::unique(needed.begin(), needed.end()), needed.end());
+
+    // Insert Project nodes on each child
+    node->left  = make_proj_for(std::move(node->left),  needed);
+    node->right = make_proj_for(std::move(node->right), needed);
+
+    // Rebuild join schema from (possibly pruned) children
+    node->schema = make_join_schema(node->left.get(), node->right.get());
+
     return node;
 }
 
